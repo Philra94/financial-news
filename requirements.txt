@@ -1,0 +1,14 @@
+anthropic
+fastapi
+google-api-python-client
+httpx
+markdown
+openai
+pydantic>=2.8
+python-dateutil
+python-slugify
+pyyaml
+rich
+typer>=0.12
+uvicorn[standard]
+youtube-transcript-api

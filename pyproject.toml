@@ -1,0 +1,55 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "financial-news"
+version = "0.1.0"
+description = "Local agentic financial news site with on-demand claim research."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "Philipp Rau" }]
+dependencies = [
+  "anthropic",
+  "fastapi",
+  "google-api-python-client",
+  "httpx",
+  "markdown",
+  "openai",
+  "pydantic>=2.8",
+  "python-dateutil",
+  "python-slugify",
+  "pyyaml",
+  "rich",
+  "typer>=0.12",
+  "uvicorn[standard]",
+  "youtube-transcript-api",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest",
+  "pytest-asyncio",
+  "ruff",
+]
+
+[project.scripts]
+financial-news = "cli.main:app"
+
+[tool.setuptools]
+packages = [
+  "agents",
+  "agents.skills",
+  "cli",
+  "web",
+  "web.backend",
+  "web.backend.routers",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
