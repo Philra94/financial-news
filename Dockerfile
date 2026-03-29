@@ -17,6 +17,7 @@ ENV BROWSER_USE_HOME=/home/app/.browser-use
 
 COPY requirements.txt ./
 RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates \
+    && pip install --no-cache-dir uv \
     && pip install --no-cache-dir -r requirements.txt \
     && rm -rf /var/lib/apt/lists/*
 
