@@ -11,7 +11,7 @@ REPORTS_DIR = DATA_DIR / "reports"
 RESEARCH_DIR = DATA_DIR / "research"
 JOBS_DIR = DATA_DIR / "jobs"
 PROMPTS_DIR = ROOT_DIR / "agents" / "prompts"
-SKILLS_DIR = ROOT_DIR / "agents" / "skills"
+SKILLS_DIR = ROOT_DIR / ".agents" / "skills"
 FRONTEND_DIST_DIR = ROOT_DIR / "web" / "frontend" / "dist"
 SETTINGS_PATH = CONFIG_DIR / "settings.json"
 PIPELINE_STATUS_PATH = DATA_DIR / "pipeline_status.json"
@@ -68,3 +68,7 @@ def research_result_path(date_str: str, claim_id: str) -> Path:
 
 def research_result_json_path(date_str: str, claim_id: str) -> Path:
     return research_day_dir(date_str) / claim_id / "result.json"
+
+
+def research_search_results_path(date_str: str, claim_id: str) -> Path:
+    return research_day_dir(date_str) / claim_id / "google-search.json"

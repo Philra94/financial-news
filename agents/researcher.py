@@ -3,11 +3,13 @@ from __future__ import annotations
 import asyncio
 from pathlib import Path
 
+from agents.google_search import format_search_context, google_search_is_configured, search_google
 from agents.models import AppSettings, DailyClaimsManifest, ResearchJob, ResearchResult
 from agents.paths import (
     SKILLS_DIR,
     claims_manifest_path,
     job_path,
+    research_search_results_path,
     research_result_json_path,
     research_result_path,
 )
@@ -80,6 +82,7 @@ def _skills() -> list[Path]:
     return [
         SKILLS_DIR / "browser" / "SKILL.md",
         SKILLS_DIR / "financial_data" / "SKILL.md",
+        SKILLS_DIR / "google_search" / "SKILL.md",
         SKILLS_DIR / "news_search" / "SKILL.md",
     ]
 
@@ -99,12 +102,29 @@ async def process_job(settings: AppSettings, job: ResearchJob) -> ResearchResult
     write_json(job_path(job.claim_id), job.model_dump(mode="json"))
     _update_claim_status(job.date, job.claim_id, "researching")
 
+    search_context = "Google search is not configured for claim research."
+    if google_search_is_configured(settings):
+        try:
+            search_results = search_google(claim.text, settings)
+        except Exception as exc:
+            search_context = f"Google search was configured but unavailable: {exc}"
+        else:
+            if search_results:
+                write_json(
+                    research_search_results_path(job.date, job.claim_id),
+                    [item.model_dump(mode="json") for item in search_results],
+                )
+                search_context = format_search_context(search_results)
+            else:
+                search_context = "Google search returned no results for this claim."
+
     prompt = render_prompt(
         "research_claim.md",
         claim=claim.text,
         speaker=claim.speaker,
         source_title=claim.source_title,
         source_url=claim.source_url,
+        search_context=search_context,
     )
     runner = build_runner(job.backend, workspace, settings.agent.research_timeout_seconds)
     output = unwrap_markdown_response(await runner.run(prompt, _skills()))

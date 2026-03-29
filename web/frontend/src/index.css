@@ -294,18 +294,19 @@ textarea {
 }
 
 .claim-inline {
-  display: flex;
+  display: inline-flex;
   flex-wrap: wrap;
   align-items: baseline;
   gap: 0.45rem;
-  font-size: 1rem;
+  font-size: inherit;
 }
 
 .claim-inline__text {
+  color: #1d1a16;
   text-decoration-line: underline;
-  text-decoration-style: dotted;
+  text-decoration-style: solid;
   text-decoration-thickness: 1px;
-  text-underline-offset: 0.18rem;
+  text-underline-offset: 0.16rem;
 }
 
 .claim-inline__text--researching,
@@ -316,6 +317,20 @@ textarea {
 
 .claim-inline__text--failed {
   text-decoration-style: dashed;
+}
+
+.claim-inline__chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.08rem 0.42rem;
+  border: 1px solid rgba(29, 26, 22, 0.18);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.34);
+  color: #c0392b;
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  vertical-align: middle;
 }
 
 .claim-inline__action,
@@ -340,9 +355,8 @@ textarea {
 
 .research-sidebar {
   margin-top: 1rem;
-  padding: 1rem 0 0.2rem;
+  padding: 1.25rem 0 0.2rem;
   border-top: 1px solid rgba(29, 26, 22, 0.18);
-  border-bottom: 1px solid rgba(29, 26, 22, 0.18);
 }
 
 .research-sidebar__label {
@@ -366,6 +380,10 @@ textarea {
   border-top: 1px solid rgba(29, 26, 22, 0.14);
 }
 
+.archive-item--claim {
+  grid-template-columns: 120px minmax(0, 1fr) 110px;
+}
+
 .archive-item__date,
 .archive-item__claims {
   color: rgba(29, 26, 22, 0.6);
@@ -376,6 +394,28 @@ textarea {
   font-family: 'Libre Baskerville', Georgia, serif;
   font-size: 1.15rem;
   color: #1d1a16;
+}
+
+.claim-page-header {
+  display: grid;
+  gap: 0.85rem;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1.25rem;
+  border-bottom: 1px solid rgba(29, 26, 22, 0.16);
+}
+
+.claim-page-title {
+  margin: 0;
+  font-family: 'Libre Baskerville', Georgia, serif;
+  font-size: clamp(1.9rem, 3vw, 2.7rem);
+  line-height: 1.18;
+}
+
+.claim-page-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.9rem;
+  align-items: center;
 }
 
 .settings-form {

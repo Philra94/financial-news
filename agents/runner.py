@@ -7,6 +7,7 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 
 from agents.models import AgentBackend
+from agents.paths import ROOT_DIR
 from agents.storage import write_text
 
 
@@ -21,6 +22,7 @@ class AgentRunner(ABC):
 
     def prepare_workspace(self, task_prompt: str, skills: list[Path]) -> None:
         self.workspace.mkdir(parents=True, exist_ok=True)
+        self._attach_project_agents_dir()
         write_text(self.workspace / "TASK.md", task_prompt)
         skill_sections = []
         for skill in skills:
@@ -28,6 +30,16 @@ class AgentRunner(ABC):
                 continue
             skill_sections.append(f"# {skill.parent.name}\n\n{skill.read_text(encoding='utf-8')}")
         write_text(self.workspace / "AGENTS.md", "\n\n".join(skill_sections))
+
+    def _attach_project_agents_dir(self) -> None:
+        project_agents_dir = ROOT_DIR / ".agents"
+        workspace_agents_dir = self.workspace / ".agents"
+        if not project_agents_dir.exists() or workspace_agents_dir.exists():
+            return
+        try:
+            workspace_agents_dir.symlink_to(project_agents_dir, target_is_directory=True)
+        except OSError:
+            shutil.copytree(project_agents_dir, workspace_agents_dir)
 
     async def _run_command(self, command: list[str], task_prompt: str) -> str:
         process = await asyncio.create_subprocess_exec(

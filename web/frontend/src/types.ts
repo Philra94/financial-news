@@ -56,6 +56,12 @@ export type ResearchResult = {
   markdown: string
 }
 
+export type GoogleSearchResult = {
+  title: string
+  link: string
+  snippet: string
+}
+
 export type PipelineJob = {
   id: string
   date: string
@@ -101,6 +107,14 @@ export type AppSettings = {
     max_concurrent_research: number
     research_timeout_seconds: number
   }
+  google_search: {
+    api_key: string
+    engine_id: string
+  }
+  capital_iq: {
+    username: string
+    password: string
+  }
   schedule: {
     fetch_cron: string
     timezone: string
@@ -117,4 +131,15 @@ export type ResolvedChannel = {
   name: string
   source_input: string
   url: string
+}
+
+export type ClaimListItem = Claim & {
+  date: string
+}
+
+export type ClaimDetailResponse = {
+  date: string
+  claim: Claim
+  job: ResearchJob | null
+  result: ResearchResult | null
 }

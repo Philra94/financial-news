@@ -31,12 +31,51 @@ def _find_claim_date(claim_id: str) -> str | None:
     return None
 
 
+def _find_claim(date_str: str, claim_id: str):
+    manifest = model_from_json(claims_manifest_path(date_str), DailyClaimsManifest)
+    if manifest is None:
+        return None
+    return next((claim for claim in manifest.claims if claim.id == claim_id), None)
+
+
+@router.get("/claims")
+def list_claims() -> list[dict]:
+    claims: list[dict] = []
+    if not RAW_DIR.exists():
+        return claims
+
+    for path in sorted(RAW_DIR.iterdir(), reverse=True):
+        manifest = model_from_json(claims_manifest_path(path.name), DailyClaimsManifest)
+        if not manifest:
+            continue
+        for claim in manifest.claims:
+            payload = claim.model_dump(mode="json")
+            payload["date"] = manifest.date
+            claims.append(payload)
+    return claims
+
+
 @router.get("/claims/{date_str}")
 def get_claims(date_str: str) -> dict:
     manifest = model_from_json(claims_manifest_path(date_str), DailyClaimsManifest)
     if manifest is None:
         raise HTTPException(status_code=404, detail="Claims manifest not found")
     return manifest.model_dump(mode="json")
+
+
+@router.get("/claims/{date_str}/{claim_id}")
+def get_claim(date_str: str, claim_id: str) -> dict:
+    claim = _find_claim(date_str, claim_id)
+    if claim is None:
+        raise HTTPException(status_code=404, detail="Claim not found")
+    job = load_job(claim_id)
+    result = load_research_result(date_str, claim_id)
+    return {
+        "date": date_str,
+        "claim": claim.model_dump(mode="json"),
+        "job": job.model_dump(mode="json") if job else None,
+        "result": result.model_dump(mode="json") if result else None,
+    }
 
 
 @router.post("/research/{claim_id}")

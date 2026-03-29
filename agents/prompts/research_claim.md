@@ -8,6 +8,9 @@ Context:
 - Source video: {{source_title}}
 - Source URL: {{source_url}}
 
+Google search context:
+{{search_context}}
+
 Instructions:
 - Find supporting evidence.
 - Find counter-evidence and reasons the claim could be wrong.

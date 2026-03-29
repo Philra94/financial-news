@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 
-import { getSettings, putSettings, resolveChannel } from '../lib/api'
-import type { AppSettings, ResolvedChannel } from '../types'
+import { getSettings, putSettings, resolveChannel, testGoogleSearch } from '../lib/api'
+import type { AppSettings, GoogleSearchResult, ResolvedChannel } from '../types'
 
 const EMPTY_SETTINGS: AppSettings = {
   youtube: {
@@ -14,6 +14,14 @@ const EMPTY_SETTINGS: AppSettings = {
     backend: 'codex',
     max_concurrent_research: 2,
     research_timeout_seconds: 600,
+  },
+  google_search: {
+    api_key: '',
+    engine_id: '',
+  },
+  capital_iq: {
+    username: '',
+    password: '',
   },
   schedule: {
     fetch_cron: '0 5 * * *',
@@ -33,6 +41,9 @@ export function SettingsPage() {
   const [channelCheck, setChannelCheck] = useState<ResolvedChannel | null>(null)
   const [channelCheckError, setChannelCheckError] = useState<string | null>(null)
   const [showApiKey, setShowApiKey] = useState(false)
+  const [showCapitalIqPassword, setShowCapitalIqPassword] = useState(false)
+  const [searchCheck, setSearchCheck] = useState<GoogleSearchResult[]>([])
+  const [searchCheckError, setSearchCheckError] = useState<string | null>(null)
 
   useEffect(() => {
     getSettings().then(setSettings)
@@ -101,6 +112,26 @@ export function SettingsPage() {
       setNote('Settings saved.')
     } catch (error) {
       setNote(error instanceof Error ? error.message : 'Unable to save settings.')
+    }
+  }
+
+  async function checkGoogleSearchConfig() {
+    setSearchCheck([])
+    setSearchCheckError(null)
+    if (!settings.google_search.engine_id.trim()) {
+      setSearchCheckError('Add a Programmable Search Engine ID first.')
+      return
+    }
+    try {
+      const payload = await testGoogleSearch(
+        settings.google_search.api_key,
+        settings.youtube.api_key,
+        settings.google_search.engine_id,
+      )
+      setSearchCheck(payload.results)
+      setNote('Google search credentials are working.')
+    } catch (error) {
+      setSearchCheckError(error instanceof Error ? error.message : 'Could not verify Google search.')
     }
   }
 
@@ -229,6 +260,99 @@ export function SettingsPage() {
               }
             />
           </label>
+        </section>
+
+        <section className="settings-section">
+          <div className="settings-section__header">
+            <div className="section-label">Research</div>
+            <h2 className="settings-section__title">Google web search</h2>
+          </div>
+          <label className="field">
+            <span>Google Search API key</span>
+            <input
+              value={settings.google_search.api_key}
+              onChange={(event) =>
+                updateField('google_search', { ...settings.google_search, api_key: event.target.value })
+              }
+            />
+            <div className="form-note">
+              Optional. Leave blank to reuse the Google key from the YouTube section.
+            </div>
+          </label>
+          <label className="field">
+            <span>Programmable Search Engine ID</span>
+            <input
+              value={settings.google_search.engine_id}
+              onChange={(event) =>
+                updateField('google_search', { ...settings.google_search, engine_id: event.target.value })
+              }
+            />
+          </label>
+          <div className="settings-actions">
+            <button className="editorial-button editorial-button--boxed" onClick={checkGoogleSearchConfig} type="button">
+              Check Google search
+            </button>
+          </div>
+          {searchCheckError ? <div className="form-note form-note--error">{searchCheckError}</div> : null}
+          {searchCheck.length > 0 ? (
+            <ul className="channel-list">
+              {searchCheck.map((item) => (
+                <li className="channel-list__item" key={item.link}>
+                  <div>
+                    <strong>{item.title}</strong>
+                    <div className="channel-list__meta">{item.snippet}</div>
+                    <div className="channel-list__meta">
+                      <a href={item.link} rel="noreferrer" target="_blank">
+                        {item.link}
+                      </a>
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </section>
+
+        <section className="settings-section">
+          <div className="settings-section__header">
+            <div className="section-label">Research</div>
+            <h2 className="settings-section__title">Capital IQ access</h2>
+          </div>
+          <div className="field-row">
+            <label className="field">
+              <span>Capital IQ username</span>
+              <input
+                autoComplete="username"
+                value={settings.capital_iq.username}
+                onChange={(event) =>
+                  updateField('capital_iq', { ...settings.capital_iq, username: event.target.value })
+                }
+              />
+            </label>
+            <label className="field">
+              <span>Capital IQ password</span>
+              <div className="field-inline">
+                <input
+                  autoComplete="current-password"
+                  type={showCapitalIqPassword ? 'text' : 'password'}
+                  value={settings.capital_iq.password}
+                  onChange={(event) =>
+                    updateField('capital_iq', { ...settings.capital_iq, password: event.target.value })
+                  }
+                />
+                <button
+                  className="editorial-button"
+                  onClick={() => setShowCapitalIqPassword((current) => !current)}
+                  type="button"
+                >
+                  {showCapitalIqPassword ? 'Hide' : 'Show'}
+                </button>
+              </div>
+            </label>
+          </div>
+          <div className="form-note">
+            Used by the Capital IQ browser skill for authenticated research. Stored locally in `config/settings.json`.
+          </div>
         </section>
 
         <section className="settings-section">

@@ -2,6 +2,9 @@ import type {
   AppSettings,
   BriefingMetadata,
   BriefingResponse,
+  ClaimDetailResponse,
+  ClaimListItem,
+  GoogleSearchResult,
   PipelineJob,
   ResolvedChannel,
   ResearchJob,
@@ -64,6 +67,29 @@ export function resolveChannel(apiKey: string, channelInput: string): Promise<Re
       channel_input: channelInput,
     }),
   })
+}
+
+export function testGoogleSearch(
+  apiKey: string,
+  fallbackApiKey: string,
+  engineId: string,
+): Promise<{ ok: boolean; results: GoogleSearchResult[] }> {
+  return request('/settings/test-google-search', {
+    method: 'POST',
+    body: JSON.stringify({
+      api_key: apiKey,
+      fallback_api_key: fallbackApiKey,
+      engine_id: engineId,
+    }),
+  })
+}
+
+export function getClaimsIndex(): Promise<ClaimListItem[]> {
+  return request<ClaimListItem[]>('/claims')
+}
+
+export function getClaimDetail(date: string, claimId: string): Promise<ClaimDetailResponse> {
+  return request<ClaimDetailResponse>(`/claims/${date}/${claimId}`)
 }
 
 export function queueResearch(claimId: string, date: string): Promise<{ queued: boolean; job: ResearchJob }> {

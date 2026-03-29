@@ -31,6 +31,16 @@ class AgentSettings(BaseModel):
     research_timeout_seconds: int = 600
 
 
+class GoogleSearchSettings(BaseModel):
+    api_key: str = ""
+    engine_id: str = ""
+
+
+class CapitalIQSettings(BaseModel):
+    username: str = ""
+    password: str = ""
+
+
 class ScheduleSettings(BaseModel):
     fetch_cron: str = "0 5 * * *"
     timezone: str = "Europe/Berlin"
@@ -45,6 +55,8 @@ class SiteSettings(BaseModel):
 class AppSettings(BaseModel):
     youtube: YouTubeSettings = Field(default_factory=YouTubeSettings)
     agent: AgentSettings = Field(default_factory=AgentSettings)
+    google_search: GoogleSearchSettings = Field(default_factory=GoogleSearchSettings)
+    capital_iq: CapitalIQSettings = Field(default_factory=CapitalIQSettings)
     schedule: ScheduleSettings = Field(default_factory=ScheduleSettings)
     site: SiteSettings = Field(default_factory=SiteSettings)
 
@@ -122,6 +134,12 @@ class ResearchResult(BaseModel):
     counter_evidence: list[str] = Field(default_factory=list)
     sources: list[str] = Field(default_factory=list)
     markdown: str
+
+
+class GoogleSearchResult(BaseModel):
+    title: str
+    link: str
+    snippet: str = ""
 
 
 class PipelineJob(BaseModel):
