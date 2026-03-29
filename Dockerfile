@@ -18,7 +18,6 @@ ENV BROWSER_USE_HOME=/home/app/.browser-use
 COPY requirements.txt ./
 RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates \
     && pip install --no-cache-dir -r requirements.txt \
-    && python -m playwright install --with-deps chromium \
     && rm -rf /var/lib/apt/lists/*
 
 RUN groupadd --gid 1000 app \
@@ -36,6 +35,8 @@ COPY --from=frontend-build /app/web/frontend/dist ./web/frontend/dist
 RUN chown -R app:app /app /home/app
 
 USER app
+
+RUN browser-use install
 
 EXPOSE 8080
 
