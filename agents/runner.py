@@ -78,7 +78,7 @@ class SubprocessRunner(AgentRunner):
 
 class ClaudeCodeRunner(SubprocessRunner):
     env_var_name = "FINNEWS_CLAUDE_CODE_CMD"
-    default_command = ["claude", "--print"]
+    default_command = ["claude", "--print", "--dangerously-skip-permissions"]
 
 
 class CodexRunner(SubprocessRunner):

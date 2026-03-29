@@ -18,6 +18,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY agents ./agents
 COPY cli ./cli
+COPY .agents ./.agents
 COPY config ./config
 COPY data ./data
 COPY web/backend ./web/backend
