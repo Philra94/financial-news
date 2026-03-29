@@ -3,6 +3,7 @@ import type {
   BriefingMetadata,
   BriefingResponse,
   PipelineJob,
+  ResolvedChannel,
   ResearchJob,
   ResearchResult,
   StatusResponse,
@@ -47,6 +48,16 @@ export function putSettings(payload: AppSettings): Promise<AppSettings> {
   return request<AppSettings>('/settings', {
     method: 'PUT',
     body: JSON.stringify(payload),
+  })
+}
+
+export function resolveChannel(apiKey: string, channelInput: string): Promise<ResolvedChannel> {
+  return request<ResolvedChannel>('/settings/resolve-channel', {
+    method: 'POST',
+    body: JSON.stringify({
+      api_key: apiKey,
+      channel_input: channelInput,
+    }),
   })
 }
 

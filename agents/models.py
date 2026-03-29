@@ -15,6 +15,7 @@ class YouTubeChannel(BaseModel):
     id: str
     name: str
     focus: list[str] = Field(default_factory=list)
+    source_input: str | None = None
 
 
 class YouTubeSettings(BaseModel):

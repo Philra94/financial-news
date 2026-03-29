@@ -272,6 +272,22 @@ textarea {
   font-size: 0.92rem;
 }
 
+.settings-actions {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.channel-check {
+  padding: 0.75rem 0.9rem;
+  border: 1px solid rgba(29, 26, 22, 0.14);
+  background: rgba(255, 255, 255, 0.35);
+}
+
+.channel-check--success {
+  color: rgba(29, 26, 22, 0.82);
+}
+
 .field {
   display: grid;
   gap: 0.35rem;

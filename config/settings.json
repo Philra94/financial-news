@@ -1,7 +1,8 @@
 {
   "youtube": {
     "api_key": "",
-    "channels": [],
+    "channels": [
+    ],
     "max_videos_per_channel": 5,
     "lookback_hours": 24
   },

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 
-import { getSettings, putSettings } from '../lib/api'
-import type { AppSettings } from '../types'
+import { getSettings, putSettings, resolveChannel } from '../lib/api'
+import type { AppSettings, ResolvedChannel } from '../types'
 
 const EMPTY_SETTINGS: AppSettings = {
   youtube: {
@@ -28,8 +28,10 @@ const EMPTY_SETTINGS: AppSettings = {
 
 export function SettingsPage() {
   const [settings, setSettings] = useState<AppSettings>(EMPTY_SETTINGS)
-  const [channelDraft, setChannelDraft] = useState({ id: '', name: '', focus: '' })
+  const [channelDraft, setChannelDraft] = useState({ url: '', focus: '' })
   const [note, setNote] = useState<string | null>(null)
+  const [channelCheck, setChannelCheck] = useState<ResolvedChannel | null>(null)
+  const [channelCheckError, setChannelCheckError] = useState<string | null>(null)
 
   useEffect(() => {
     getSettings().then(setSettings)
@@ -39,22 +41,40 @@ export function SettingsPage() {
     setSettings((current) => ({ ...current, [key]: value }))
   }
 
-  function addChannel() {
-    if (!channelDraft.id || !channelDraft.name) {
+  async function addChannel() {
+    let resolvedChannel = channelCheck
+    if (!settings.youtube.api_key) {
+      setChannelCheckError('Add a YouTube Data API key first.')
       return
+    }
+    if (!channelDraft.url.trim()) {
+      setChannelCheckError('Paste a YouTube channel URL first.')
+      return
+    }
+    if (!resolvedChannel || resolvedChannel.source_input !== channelDraft.url.trim()) {
+      try {
+        resolvedChannel = await resolveChannel(settings.youtube.api_key, channelDraft.url.trim())
+        setChannelCheck(resolvedChannel)
+      } catch (error) {
+        setChannelCheckError(error instanceof Error ? error.message : 'Could not resolve channel.')
+        return
+      }
     }
     updateField('youtube', {
       ...settings.youtube,
       channels: settings.youtube.channels.concat({
-        id: channelDraft.id,
-        name: channelDraft.name,
+        id: resolvedChannel.id,
+        name: resolvedChannel.name,
         focus: channelDraft.focus
           .split(',')
           .map((value) => value.trim())
           .filter(Boolean),
+        source_input: resolvedChannel.source_input,
       }),
     })
-    setChannelDraft({ id: '', name: '', focus: '' })
+    setChannelDraft({ url: '', focus: '' })
+    setChannelCheck(null)
+    setChannelCheckError(null)
   }
 
   function removeChannel(channelId: string) {
@@ -68,6 +88,25 @@ export function SettingsPage() {
     const saved = await putSettings(settings)
     setSettings(saved)
     setNote('Settings saved.')
+  }
+
+  async function checkChannel() {
+    setChannelCheck(null)
+    setChannelCheckError(null)
+    if (!settings.youtube.api_key) {
+      setChannelCheckError('Add a YouTube Data API key first.')
+      return
+    }
+    if (!channelDraft.url.trim()) {
+      setChannelCheckError('Paste a YouTube channel URL first.')
+      return
+    }
+    try {
+      const resolved = await resolveChannel(settings.youtube.api_key, channelDraft.url.trim())
+      setChannelCheck(resolved)
+    } catch (error) {
+      setChannelCheckError(error instanceof Error ? error.message : 'Could not resolve channel.')
+    }
   }
 
   return (
@@ -158,26 +197,20 @@ export function SettingsPage() {
 
         <div className="settings-block">
           <div className="settings-intro">
-            Add the YouTube channels you want to scrape each morning. Use the channel ID from YouTube and a readable display name for the briefing.
+            Add the YouTube channels you want to scrape each morning by pasting the full YouTube channel URL. The app resolves the real channel ID and display name from the YouTube API automatically.
           </div>
-          <div className="field-row">
-            <label className="field">
-              <span>Channel ID</span>
-              <input
-                value={channelDraft.id}
-                onChange={(event) => setChannelDraft((current) => ({ ...current, id: event.target.value }))}
-              />
-            </label>
-            <label className="field">
-              <span>Channel name</span>
-              <input
-                value={channelDraft.name}
-                onChange={(event) =>
-                  setChannelDraft((current) => ({ ...current, name: event.target.value }))
-                }
-              />
-            </label>
-          </div>
+          <label className="field">
+            <span>YouTube channel URL</span>
+            <input
+              placeholder="https://www.youtube.com/@kochwallstreet"
+              value={channelDraft.url}
+              onChange={(event) => {
+                setChannelDraft((current) => ({ ...current, url: event.target.value }))
+                setChannelCheck(null)
+                setChannelCheckError(null)
+              }}
+            />
+          </label>
           <label className="field">
             <span>Focus tags (comma separated)</span>
             <input
@@ -185,14 +218,31 @@ export function SettingsPage() {
               onChange={(event) => setChannelDraft((current) => ({ ...current, focus: event.target.value }))}
             />
           </label>
-          <button className="editorial-button" onClick={addChannel} type="button">
-            Add channel
-          </button>
+          <div className="settings-actions">
+            <button className="editorial-button" onClick={checkChannel} type="button">
+              Check channel
+            </button>
+            <button className="editorial-button" onClick={addChannel} type="button">
+              Add channel
+            </button>
+          </div>
+          {channelCheck ? (
+            <div className="channel-check channel-check--success">
+              Resolved to <strong>{channelCheck.name}</strong> · {channelCheck.id} ·{' '}
+              <a href={channelCheck.url} rel="noreferrer" target="_blank">
+                open channel
+              </a>
+            </div>
+          ) : null}
+          {channelCheckError ? <div className="form-note form-note--error">{channelCheckError}</div> : null}
           <ul className="channel-list">
             {settings.youtube.channels.map((channel) => (
               <li className="channel-list__item" key={`${channel.id}-${channel.name}`}>
                 <div>
                   <strong>{channel.name}</strong> · {channel.id}
+                  {channel.source_input ? (
+                    <div className="channel-list__meta">added from {channel.source_input}</div>
+                  ) : null}
                   {channel.focus.length > 0 ? (
                     <div className="channel-list__meta">{channel.focus.join(', ')}</div>
                   ) : null}

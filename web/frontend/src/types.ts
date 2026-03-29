@@ -92,7 +92,7 @@ export type StatusResponse = {
 export type AppSettings = {
   youtube: {
     api_key: string
-    channels: Array<{ id: string; name: string; focus: string[] }>
+    channels: Array<{ id: string; name: string; focus: string[]; source_input?: string | null }>
     max_videos_per_channel: number
     lookback_hours: number
   }
@@ -110,4 +110,11 @@ export type AppSettings = {
     subtitle: string
     accent_color: string
   }
+}
+
+export type ResolvedChannel = {
+  id: string
+  name: string
+  source_input: string
+  url: string
 }

@@ -8,6 +8,7 @@ from youtube_transcript_api import YouTubeTranscriptApi
 from agents.models import AppSettings, SourceVideo
 from agents.paths import raw_day_dir
 from agents.storage import read_json, write_json
+from agents.youtube_channels import resolve_youtube_channel
 
 
 def _parse_published_at(value: str) -> datetime:
@@ -37,11 +38,12 @@ def fetch_latest_videos(settings: AppSettings, date_str: str) -> list[SourceVide
     videos: list[SourceVideo] = []
 
     for channel in settings.youtube.channels:
+        resolved_channel = resolve_youtube_channel(youtube, channel.source_input or channel.id)
         response = (
             youtube.search()
             .list(
                 part="snippet",
-                channelId=channel.id,
+                channelId=resolved_channel.id,
                 order="date",
                 publishedAfter=published_after,
                 maxResults=settings.youtube.max_videos_per_channel,
@@ -57,8 +59,8 @@ def fetch_latest_videos(settings: AppSettings, date_str: str) -> list[SourceVide
             video = SourceVideo(
                 video_id=video_id,
                 title=snippet.get("title", "Untitled video"),
-                channel_id=channel.id,
-                channel_name=snippet.get("channelTitle") or channel.name,
+                channel_id=resolved_channel.id,
+                channel_name=snippet.get("channelTitle") or resolved_channel.name or channel.name,
                 published_at=_parse_published_at(snippet["publishedAt"]),
                 url=f"https://www.youtube.com/watch?v={video_id}",
                 transcript=_fetch_transcript(video_id),
