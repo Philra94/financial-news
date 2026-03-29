@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import time
 from datetime import UTC, datetime
 
 import typer
@@ -13,6 +14,7 @@ from agents.analyzer import analyze_videos, load_analyses
 from agents.compiler import compile_briefing
 from agents.config import load_pipeline_status, load_settings, save_pipeline_status
 from agents.fetcher import fetch_latest_videos, load_fetched_videos
+from agents.pipeline import enqueue_pipeline_run, load_pipeline_job, process_next_pipeline_job, run_daily_pipeline
 from agents.paths import SETTINGS_PATH, ensure_directories
 from agents.researcher import (
     enqueue_research,
@@ -20,7 +22,6 @@ from agents.researcher import (
     load_research_result,
     process_next_job,
     research_claim_now,
-    watch_jobs,
 )
 
 app = typer.Typer(help="Local agentic financial news workflow.")
@@ -62,15 +63,7 @@ def compile_cmd(date: str = typer.Option(None, help="Target date in YYYY-MM-DD f
 def run(date: str = typer.Option(None, help="Target date in YYYY-MM-DD format.")) -> None:
     settings = load_settings()
     target_date = date or _today()
-    videos = fetch_latest_videos(settings, target_date)
-    analyses = analyze_videos(settings, videos, target_date)
-    compile_briefing(settings, analyses, target_date)
-
-    status = load_pipeline_status()
-    status.last_run_at = datetime.now(UTC)
-    status.last_run_date = target_date
-    status.last_error = None
-    save_pipeline_status(status)
+    run_daily_pipeline(settings, target_date)
     console.print(f"Daily pipeline completed for {target_date}.")
 
 
@@ -95,9 +88,15 @@ def worker(
     save_pipeline_status(status)
     try:
         if watch:
-            asyncio.run(watch_jobs(settings, poll_interval=poll_interval))
+            while True:
+                pipeline_job = process_next_pipeline_job(settings)
+                research_job = None if pipeline_job is not None else asyncio.run(process_next_job(settings))
+                if pipeline_job is None and research_job is None:
+                    time.sleep(poll_interval)
         else:
-            asyncio.run(process_next_job(settings))
+            pipeline_job = process_next_pipeline_job(settings)
+            if pipeline_job is None:
+                asyncio.run(process_next_job(settings))
     finally:
         status = load_pipeline_status()
         status.worker_running = False
@@ -118,6 +117,7 @@ def status() -> None:
     table.add_row("Last run date", pipeline_status.last_run_date or "-")
     table.add_row("Last run at", pipeline_status.last_run_at.isoformat() if pipeline_status.last_run_at else "-")
     table.add_row("Worker running", "yes" if pipeline_status.worker_running else "no")
+    table.add_row("Active manual run", pipeline_status.active_pipeline_job_id or "-")
     table.add_row("Jobs queued", str(sum(1 for job in list_jobs() if job.status == "queued")))
     console.print(table)
 
@@ -149,6 +149,22 @@ def result_cmd(
         console.print(f"No research result found for {claim} on {date}.", style="red")
         raise typer.Exit(code=1)
     console.print(result.markdown)
+
+
+@app.command("run-queue")
+def queue_pipeline_run(date: str = typer.Option(None, help="Date to run in YYYY-MM-DD format.")) -> None:
+    target_date = date or _today()
+    job = enqueue_pipeline_run(target_date)
+    console.print(f"Queued pipeline run {job.id}.")
+
+
+@app.command("run-result")
+def pipeline_result(job_id: str = typer.Option(..., "--job-id", help="Pipeline job ID to inspect.")) -> None:
+    job = load_pipeline_job(job_id)
+    if job is None:
+        console.print(f"No pipeline job found for {job_id}.", style="red")
+        raise typer.Exit(code=1)
+    console.print_json(data=job.model_dump(mode="json"))
 
 
 if __name__ == "__main__":

@@ -50,6 +50,10 @@ def job_path(claim_id: str) -> Path:
     return JOBS_DIR / f"{claim_id}.json"
 
 
+def pipeline_job_path(job_id: str) -> Path:
+    return JOBS_DIR / f"{job_id}.json"
+
+
 def research_result_path(date_str: str, claim_id: str) -> Path:
     return research_day_dir(date_str) / claim_id / "result.md"
 

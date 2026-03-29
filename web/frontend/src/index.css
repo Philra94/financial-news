@@ -122,6 +122,17 @@ textarea {
   margin-top: 1rem;
 }
 
+.manual-run-panel {
+  margin-top: 1rem;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.manual-run-panel__meta {
+  color: rgba(29, 26, 22, 0.68);
+  font-size: 0.88rem;
+}
+
 .editorial-markdown > *:first-child {
   margin-top: 0;
 }
@@ -255,6 +266,12 @@ textarea {
   padding-top: 1rem;
 }
 
+.settings-intro,
+.channel-list__meta {
+  color: rgba(29, 26, 22, 0.7);
+  font-size: 0.92rem;
+}
+
 .field {
   display: grid;
   gap: 0.35rem;
@@ -281,9 +298,22 @@ textarea {
   font-size: 0.75rem;
 }
 
+.editorial-button--boxed {
+  border: 1px solid rgba(29, 26, 22, 0.18);
+  padding: 0.75rem 1rem;
+  background: rgba(255, 255, 255, 0.35);
+}
+
 .channel-list {
   margin: 1rem 0 0;
   padding-left: 1.2rem;
+}
+
+.channel-list__item {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: flex-start;
 }
 
 .empty-state {

@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 
 AgentBackend = Literal["claude-code", "codex", "cursor", "copilot"]
 ClaimStatus = Literal["pending", "queued", "researching", "completed", "failed"]
+PipelineJobStatus = Literal["queued", "running", "completed", "failed"]
 
 
 class YouTubeChannel(BaseModel):
@@ -29,12 +30,6 @@ class AgentSettings(BaseModel):
     research_timeout_seconds: int = 600
 
 
-class LLMSettings(BaseModel):
-    provider: Literal["openai", "anthropic"] = "openai"
-    api_key: str = ""
-    model: str = "gpt-5-mini"
-
-
 class ScheduleSettings(BaseModel):
     fetch_cron: str = "0 5 * * *"
     timezone: str = "Europe/Berlin"
@@ -49,7 +44,6 @@ class SiteSettings(BaseModel):
 class AppSettings(BaseModel):
     youtube: YouTubeSettings = Field(default_factory=YouTubeSettings)
     agent: AgentSettings = Field(default_factory=AgentSettings)
-    llm: LLMSettings = Field(default_factory=LLMSettings)
     schedule: ScheduleSettings = Field(default_factory=ScheduleSettings)
     site: SiteSettings = Field(default_factory=SiteSettings)
 
@@ -129,6 +123,16 @@ class ResearchResult(BaseModel):
     markdown: str
 
 
+class PipelineJob(BaseModel):
+    id: str
+    date: str
+    status: PipelineJobStatus = "queued"
+    created_at: datetime
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
+    error: str | None = None
+
+
 class BriefingIndexItem(BaseModel):
     date: str
     title: str
@@ -142,3 +146,4 @@ class PipelineStatus(BaseModel):
     last_run_date: str | None = None
     last_error: str | None = None
     worker_running: bool = False
+    active_pipeline_job_id: str | None = None

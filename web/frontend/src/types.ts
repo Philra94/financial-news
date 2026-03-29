@@ -56,6 +56,39 @@ export type ResearchResult = {
   markdown: string
 }
 
+export type PipelineJob = {
+  id: string
+  date: string
+  status: 'queued' | 'running' | 'completed' | 'failed'
+  created_at: string
+  started_at?: string | null
+  completed_at?: string | null
+  error?: string | null
+}
+
+export type StatusResponse = {
+  pipeline: {
+    last_run_at?: string | null
+    last_run_date?: string | null
+    last_error?: string | null
+    worker_running: boolean
+    active_pipeline_job_id?: string | null
+  }
+  manual_runs: {
+    queued: number
+    running: number
+    completed: number
+    failed: number
+    latest: PipelineJob | null
+  }
+  jobs: {
+    queued: number
+    researching: number
+    completed: number
+    failed: number
+  }
+}
+
 export type AppSettings = {
   youtube: {
     api_key: string
@@ -67,11 +100,6 @@ export type AppSettings = {
     backend: string
     max_concurrent_research: number
     research_timeout_seconds: number
-  }
-  llm: {
-    provider: 'openai' | 'anthropic'
-    api_key: string
-    model: string
   }
   schedule: {
     fetch_cron: string

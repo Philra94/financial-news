@@ -11,12 +11,10 @@ requires-python = ">=3.11"
 license = { text = "MIT" }
 authors = [{ name = "Philipp Rau" }]
 dependencies = [
-  "anthropic",
   "fastapi",
   "google-api-python-client",
   "httpx",
   "markdown",
-  "openai",
   "pydantic>=2.8",
   "python-dateutil",
   "python-slugify",

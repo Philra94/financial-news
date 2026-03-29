@@ -15,11 +15,6 @@ const EMPTY_SETTINGS: AppSettings = {
     max_concurrent_research: 2,
     research_timeout_seconds: 600,
   },
-  llm: {
-    provider: 'openai',
-    api_key: '',
-    model: 'gpt-5-mini',
-  },
   schedule: {
     fetch_cron: '0 5 * * *',
     timezone: 'Europe/Berlin',
@@ -62,6 +57,13 @@ export function SettingsPage() {
     setChannelDraft({ id: '', name: '', focus: '' })
   }
 
+  function removeChannel(channelId: string) {
+    updateField('youtube', {
+      ...settings.youtube,
+      channels: settings.youtube.channels.filter((channel) => channel.id !== channelId),
+    })
+  }
+
   async function save() {
     const saved = await putSettings(settings)
     setSettings(saved)
@@ -94,27 +96,32 @@ export function SettingsPage() {
         </label>
 
         <label className="field">
-          <span>LLM provider</span>
-          <select
-            value={settings.llm.provider}
+          <span>Videos per channel per run</span>
+          <input
+            min={1}
+            type="number"
+            value={settings.youtube.max_videos_per_channel}
             onChange={(event) =>
-              updateField('llm', {
-                ...settings.llm,
-                provider: event.target.value as AppSettings['llm']['provider'],
+              updateField('youtube', {
+                ...settings.youtube,
+                max_videos_per_channel: Number(event.target.value || 1),
               })
             }
-          >
-            <option value="openai">OpenAI</option>
-            <option value="anthropic">Anthropic</option>
-          </select>
+          />
         </label>
 
         <label className="field">
-          <span>LLM API key</span>
+          <span>Lookback window in hours</span>
           <input
-            type="password"
-            value={settings.llm.api_key}
-            onChange={(event) => updateField('llm', { ...settings.llm, api_key: event.target.value })}
+            min={1}
+            type="number"
+            value={settings.youtube.lookback_hours}
+            onChange={(event) =>
+              updateField('youtube', {
+                ...settings.youtube,
+                lookback_hours: Number(event.target.value || 1),
+              })
+            }
           />
         </label>
 
@@ -133,7 +140,26 @@ export function SettingsPage() {
           </select>
         </label>
 
+        <label className="field">
+          <span>Research timeout in seconds</span>
+          <input
+            min={30}
+            step={30}
+            type="number"
+            value={settings.agent.research_timeout_seconds}
+            onChange={(event) =>
+              updateField('agent', {
+                ...settings.agent,
+                research_timeout_seconds: Number(event.target.value || 30),
+              })
+            }
+          />
+        </label>
+
         <div className="settings-block">
+          <div className="settings-intro">
+            Add the YouTube channels you want to scrape each morning. Use the channel ID from YouTube and a readable display name for the briefing.
+          </div>
           <div className="field-row">
             <label className="field">
               <span>Channel ID</span>
@@ -164,8 +190,16 @@ export function SettingsPage() {
           </button>
           <ul className="channel-list">
             {settings.youtube.channels.map((channel) => (
-              <li key={`${channel.id}-${channel.name}`}>
-                <strong>{channel.name}</strong> · {channel.id}
+              <li className="channel-list__item" key={`${channel.id}-${channel.name}`}>
+                <div>
+                  <strong>{channel.name}</strong> · {channel.id}
+                  {channel.focus.length > 0 ? (
+                    <div className="channel-list__meta">{channel.focus.join(', ')}</div>
+                  ) : null}
+                </div>
+                <button className="claim-inline__action" onClick={() => removeChannel(channel.id)} type="button">
+                  remove
+                </button>
               </li>
             ))}
           </ul>

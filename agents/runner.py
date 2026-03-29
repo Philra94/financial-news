@@ -32,15 +32,12 @@ class AgentRunner(ABC):
     async def _run_command(self, command: list[str], task_prompt: str) -> str:
         process = await asyncio.create_subprocess_exec(
             *command,
+            task_prompt,
             cwd=str(self.workspace),
-            stdin=asyncio.subprocess.PIPE,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
-        stdout, stderr = await asyncio.wait_for(
-            process.communicate(task_prompt.encode("utf-8")),
-            timeout=self.timeout_seconds,
-        )
+        stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=self.timeout_seconds)
         if process.returncode != 0:
             raise RuntimeError(stderr.decode("utf-8", errors="ignore") or "Agent CLI failed")
         return stdout.decode("utf-8", errors="ignore").strip()

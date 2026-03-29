@@ -1,10 +1,14 @@
 from __future__ import annotations
 
+import asyncio
+import json
 from collections import defaultdict
 from datetime import UTC, datetime
 
 from agents.models import AppSettings, BriefingIndexItem, VideoAnalysis
 from agents.paths import briefing_metadata_path, briefing_path, report_day_dir
+from agents.prompts_loader import render_prompt
+from agents.runner import build_runner
 from agents.storage import write_json, write_text
 
 
@@ -27,44 +31,34 @@ def compile_briefing(settings: AppSettings, analyses: list[VideoAnalysis], date_
     for analysis in analyses:
         sections[_section_for_analysis(analysis)].append(analysis)
 
-    lines = [
-        f"# {settings.site.title}",
-        "",
-        settings.site.subtitle,
-        "",
-        f"*{date_str}*",
-        "",
-        "---",
-        "",
-    ]
-
     market_overview = "No channel data was available for this date yet."
     if analyses:
         market_overview = " ".join(
             analysis.summary for analysis in analyses[:3] if analysis.summary
         ).strip() or market_overview
-    lines.extend(["## MARKET OVERVIEW", "", market_overview, ""])
 
-    for section_name in ("EQUITIES", "MACRO", "COMMODITIES", "WATCHLIST"):
-        items = sections.get(section_name, [])
-        if not items:
-            continue
-        lines.extend([f"## {section_name}", ""])
-        for analysis in items:
-            lines.extend([f"### {analysis.video.title}", "", analysis.summary, ""])
-            for opinion in analysis.opinions:
-                lines.extend(
-                    [
-                        f"> \"{opinion.quote}\"",
-                        f"> *{opinion.speaker}, [{analysis.video.channel_name}]({analysis.video.url})*",
-                        "",
-                    ]
-                )
-            for claim in analysis.claims:
-                lines.extend([f"[[claim:{claim.id}|{claim.text}]]", ""])
-            lines.extend([f"[Source video]({analysis.video.url})", ""])
-
-    markdown = "\n".join(lines).strip() + "\n"
+    structured_payload = {
+        "date": date_str,
+        "subtitle": settings.site.subtitle,
+        "market_overview": market_overview,
+        "sections": {
+            section: [analysis.model_dump(mode="json") for analysis in items]
+            for section, items in sections.items()
+        },
+    }
+    prompt = render_prompt(
+        "compile_briefing.md",
+        date=date_str,
+        title=settings.site.title,
+        payload=json.dumps(structured_payload, indent=2),
+    )
+    workspace = day_dir / "agent-compile"
+    runner = build_runner(settings.agent.backend, workspace, settings.agent.research_timeout_seconds)
+    markdown = asyncio.run(runner.run(prompt, []))
+    if not markdown.strip():
+        raise RuntimeError("Compile agent returned empty markdown")
+    if not markdown.endswith("\n"):
+        markdown += "\n"
     write_text(briefing_path(date_str), markdown)
 
     item = BriefingIndexItem(

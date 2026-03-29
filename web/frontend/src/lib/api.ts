@@ -1,4 +1,12 @@
-import type { AppSettings, BriefingMetadata, BriefingResponse, ResearchJob, ResearchResult } from '../types'
+import type {
+  AppSettings,
+  BriefingMetadata,
+  BriefingResponse,
+  PipelineJob,
+  ResearchJob,
+  ResearchResult,
+  StatusResponse,
+} from '../types'
 
 const API_BASE = '/api'
 
@@ -51,4 +59,19 @@ export function queueResearch(claimId: string, date: string): Promise<{ queued: 
 
 export function getResearch(claimId: string): Promise<{ job: ResearchJob; result: ResearchResult | null }> {
   return request(`/research/${claimId}`)
+}
+
+export function getStatus(): Promise<StatusResponse> {
+  return request<StatusResponse>('/status')
+}
+
+export function queuePipelineRun(date: string): Promise<{ queued: boolean; job: PipelineJob }> {
+  return request('/run', {
+    method: 'POST',
+    body: JSON.stringify({ date }),
+  })
+}
+
+export function getPipelineRun(jobId: string): Promise<{ job: PipelineJob }> {
+  return request(`/run/${jobId}`)
 }

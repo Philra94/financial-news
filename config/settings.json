@@ -10,11 +10,6 @@
     "max_concurrent_research": 2,
     "research_timeout_seconds": 600
   },
-  "llm": {
-    "provider": "openai",
-    "api_key": "",
-    "model": "gpt-5-mini"
-  },
   "schedule": {
     "fetch_cron": "0 5 * * *",
     "timezone": "Europe/Berlin"

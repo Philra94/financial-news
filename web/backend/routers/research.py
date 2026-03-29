@@ -5,6 +5,7 @@ from pydantic import BaseModel
 
 from agents.config import load_settings
 from agents.models import DailyClaimsManifest
+from agents.pipeline import enqueue_pipeline_run, load_pipeline_job
 from agents.paths import RAW_DIR, claims_manifest_path
 from agents.researcher import enqueue_research, load_job, load_research_result
 from agents.storage import model_from_json
@@ -13,6 +14,10 @@ router = APIRouter(prefix="/api", tags=["research"])
 
 
 class ResearchRequest(BaseModel):
+    date: str
+
+
+class PipelineRunRequest(BaseModel):
     date: str
 
 
@@ -54,3 +59,17 @@ def get_research(claim_id: str) -> dict:
         "job": job.model_dump(mode="json"),
         "result": result.model_dump(mode="json") if result else None,
     }
+
+
+@router.post("/run")
+def queue_pipeline_run(payload: PipelineRunRequest) -> dict:
+    job = enqueue_pipeline_run(payload.date)
+    return {"queued": True, "job": job.model_dump(mode="json")}
+
+
+@router.get("/run/{job_id}")
+def get_pipeline_run(job_id: str) -> dict:
+    job = load_pipeline_job(job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="Pipeline job not found")
+    return {"job": job.model_dump(mode="json")}

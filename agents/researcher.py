@@ -54,7 +54,7 @@ def load_job(claim_id: str) -> ResearchJob | None:
 
 def list_jobs() -> list[ResearchJob]:
     jobs: list[ResearchJob] = []
-    for path in sorted(job_path("*").parent.glob("*.json")):
+    for path in sorted(job_path("*").parent.glob("claim-*.json")):
         job = model_from_json(path, ResearchJob)
         if job is not None:
             jobs.append(job)
