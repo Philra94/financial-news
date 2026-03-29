@@ -42,6 +42,9 @@ export function MarkdownRenderer({ markdown, claims, date }: MarkdownRendererPro
               </a>
             )
           },
+          img({ alt, src, title }) {
+            return <img alt={alt ?? ''} className="editorial-markdown__image" loading="lazy" src={src} title={title} />
+          },
         }}
         remarkPlugins={[remarkGfm]}
         urlTransform={(url) => url}
