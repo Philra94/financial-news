@@ -26,6 +26,14 @@ def raw_day_dir(date_str: str) -> Path:
     return RAW_DIR / date_str
 
 
+def transcript_dir(date_str: str) -> Path:
+    return raw_day_dir(date_str) / "transcripts"
+
+
+def transcript_path(date_str: str, video_id: str) -> Path:
+    return transcript_dir(date_str) / f"{video_id}.txt"
+
+
 def report_day_dir(date_str: str) -> Path:
     return REPORTS_DIR / date_str
 

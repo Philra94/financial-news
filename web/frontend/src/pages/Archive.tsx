@@ -22,6 +22,7 @@ export function Archive() {
     <section>
       <div className="section-label">Archive</div>
       <h1 className="briefing-title">Previous editions</h1>
+      <p className="page-lead">Browse earlier briefings, summaries, and claim counts by publication date.</p>
       <div className="archive-list">
         {briefings.map((item) => (
           <article className="archive-item" key={item.date}>

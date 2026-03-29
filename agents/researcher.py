@@ -14,7 +14,7 @@ from agents.paths import (
 from agents.prompts_loader import render_prompt
 from agents.runner import build_runner
 from agents.storage import model_from_json, read_json, write_json, write_text
-from agents.utils import utc_now
+from agents.utils import unwrap_markdown_response, utc_now
 
 
 def load_claim_manifest(date_str: str) -> DailyClaimsManifest:
@@ -107,7 +107,7 @@ async def process_job(settings: AppSettings, job: ResearchJob) -> ResearchResult
         source_url=claim.source_url,
     )
     runner = build_runner(job.backend, workspace, settings.agent.research_timeout_seconds)
-    output = await runner.run(prompt, _skills())
+    output = unwrap_markdown_response(await runner.run(prompt, _skills()))
     if not output:
         output = "# Claim\n\nNo output was returned by the selected agent."
 

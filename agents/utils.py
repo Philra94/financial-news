@@ -6,6 +6,7 @@ from datetime import UTC, datetime
 
 
 TICKER_PATTERN = re.compile(r"\b[A-Z]{2,5}\b")
+FENCED_BLOCK_PATTERN = re.compile(r"^```(?:markdown|md|mdx)?\s*\n(?P<body>.*)\n```\s*$", re.DOTALL)
 
 
 def utc_now() -> datetime:
@@ -29,3 +30,11 @@ def extract_tickers(text: str) -> list[str]:
 def sentence_chunks(text: str) -> list[str]:
     chunks = re.split(r"(?<=[.!?])\s+", text.strip())
     return [chunk.strip() for chunk in chunks if chunk.strip()]
+
+
+def unwrap_markdown_response(text: str) -> str:
+    cleaned = text.strip()
+    match = FENCED_BLOCK_PATTERN.match(cleaned)
+    if match:
+        return match.group("body").strip()
+    return cleaned

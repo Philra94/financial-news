@@ -1,13 +1,14 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime, time, timedelta
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from googleapiclient.discovery import build
 from youtube_transcript_api import YouTubeTranscriptApi
 
 from agents.models import AppSettings, SourceVideo, YouTubeChannel
-from agents.paths import raw_day_dir
-from agents.storage import read_json, write_json
+from agents.paths import raw_day_dir, transcript_path
+from agents.storage import read_json, write_json, write_text
 from agents.youtube_channels import resolve_youtube_channel
 
 
@@ -23,6 +24,36 @@ def _fetch_transcript(video_id: str) -> str:
     except Exception:
         return ""
     return " ".join(chunk["text"].strip() for chunk in transcript if chunk.get("text"))
+
+
+def _timezone(settings: AppSettings) -> ZoneInfo:
+    try:
+        return ZoneInfo(settings.schedule.timezone or "UTC")
+    except ZoneInfoNotFoundError:
+        return ZoneInfo("UTC")
+
+
+def _published_window(
+    settings: AppSettings, date_str: str, *, now: datetime | None = None
+) -> tuple[datetime, datetime]:
+    tz = _timezone(settings)
+    target_date = datetime.fromisoformat(date_str).date()
+    start_local = datetime.combine(target_date, time.min, tzinfo=tz)
+    end_local = start_local + timedelta(days=1)
+
+    now_utc = now or datetime.now(UTC)
+    now_local = now_utc.astimezone(tz)
+    if target_date == now_local.date():
+        lookback_start = now_local - timedelta(hours=settings.youtube.lookback_hours)
+        return max(start_local, lookback_start).astimezone(UTC), now_utc
+
+    return start_local.astimezone(UTC), end_local.astimezone(UTC)
+
+
+def _persist_transcript(date_str: str, video: SourceVideo) -> None:
+    if not video.transcript.strip():
+        return
+    write_text(transcript_path(date_str, video.video_id), video.transcript.rstrip() + "\n")
 
 
 def _resolved_fetch_channel(youtube: object, channel: YouTubeChannel) -> tuple[str, str]:
@@ -49,7 +80,7 @@ def fetch_latest_videos(settings: AppSettings, date_str: str) -> list[SourceVide
         return []
 
     youtube = build("youtube", "v3", developerKey=settings.youtube.api_key)
-    published_after = (datetime.now(UTC) - timedelta(hours=settings.youtube.lookback_hours)).isoformat()
+    published_after, published_before = _published_window(settings, date_str)
     videos: list[SourceVideo] = []
 
     for channel in settings.youtube.channels:
@@ -60,7 +91,8 @@ def fetch_latest_videos(settings: AppSettings, date_str: str) -> list[SourceVide
                 part="snippet",
                 channelId=channel_id,
                 order="date",
-                publishedAfter=published_after,
+                publishedAfter=published_after.isoformat(),
+                publishedBefore=published_before.isoformat(),
                 maxResults=settings.youtube.max_videos_per_channel,
                 type="video",
             )
@@ -83,6 +115,7 @@ def fetch_latest_videos(settings: AppSettings, date_str: str) -> list[SourceVide
                 description=snippet.get("description", ""),
             )
             videos.append(video)
+            _persist_transcript(date_str, video)
 
     videos.sort(key=lambda video: video.published_at, reverse=True)
     write_json(day_dir / "videos.json", [video.model_dump(mode="json") for video in videos])

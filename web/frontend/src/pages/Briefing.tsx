@@ -29,10 +29,11 @@ export function BriefingPage() {
 
   return (
     <article>
-      <header className="briefing-header">
-        <div className="section-label">Edition</div>
-        <h1 className="briefing-title">{briefing.metadata?.title ?? 'Morning Briefing'}</h1>
-        <p className="briefing-subtitle">{briefing.date}</p>
+      <header className="article-chrome">
+        <div className="article-meta">
+          <span>{briefing.date}</span>
+          <span>{briefing.claims.length} researchable claims</span>
+        </div>
       </header>
       <MarkdownRenderer claims={briefing.claims} date={briefing.date} markdown={briefing.markdown} />
     </article>

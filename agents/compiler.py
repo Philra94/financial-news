@@ -10,6 +10,7 @@ from agents.paths import briefing_metadata_path, briefing_path, report_day_dir
 from agents.prompts_loader import render_prompt
 from agents.runner import build_runner
 from agents.storage import write_json, write_text
+from agents.utils import unwrap_markdown_response
 
 
 def _section_for_analysis(analysis: VideoAnalysis) -> str:
@@ -54,7 +55,7 @@ def compile_briefing(settings: AppSettings, analyses: list[VideoAnalysis], date_
     )
     workspace = day_dir / "agent-compile"
     runner = build_runner(settings.agent.backend, workspace, settings.agent.research_timeout_seconds)
-    markdown = asyncio.run(runner.run(prompt, []))
+    markdown = unwrap_markdown_response(asyncio.run(runner.run(prompt, [])))
     if not markdown.strip():
         raise RuntimeError("Compile agent returned empty markdown")
     if not markdown.endswith("\n"):
