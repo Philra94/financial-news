@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 from googleapiclient.discovery import build
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from agents.config import load_settings, save_settings
 from agents.models import AppSettings
-from agents.youtube_channels import resolve_youtube_channel
+from agents.youtube_channels import ChannelResolutionError, resolve_youtube_channel
 
 router = APIRouter(prefix="/api/settings", tags=["settings"])
 
@@ -29,8 +29,11 @@ def update_settings(payload: AppSettings) -> dict:
 
 @router.post("/resolve-channel")
 def resolve_channel(payload: ResolveChannelRequest) -> dict:
-    youtube = build("youtube", "v3", developerKey=payload.api_key)
-    resolved = resolve_youtube_channel(youtube, payload.channel_input)
+    try:
+        youtube = build("youtube", "v3", developerKey=payload.api_key)
+        resolved = resolve_youtube_channel(youtube, payload.channel_input)
+    except ChannelResolutionError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     return {
         "id": resolved.id,
         "name": resolved.name,

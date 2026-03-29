@@ -21,8 +21,13 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   })
 
   if (!response.ok) {
-    const text = await response.text()
-    throw new Error(text || `Request failed: ${response.status}`)
+    const raw = await response.text()
+    try {
+      const parsed = JSON.parse(raw) as { detail?: string }
+      throw new Error(parsed.detail || `Request failed: ${response.status}`)
+    } catch {
+      throw new Error(raw || `Request failed: ${response.status}`)
+    }
   }
 
   return (await response.json()) as T

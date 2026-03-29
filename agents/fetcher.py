@@ -5,7 +5,7 @@ from datetime import UTC, datetime, timedelta
 from googleapiclient.discovery import build
 from youtube_transcript_api import YouTubeTranscriptApi
 
-from agents.models import AppSettings, SourceVideo
+from agents.models import AppSettings, SourceVideo, YouTubeChannel
 from agents.paths import raw_day_dir
 from agents.storage import read_json, write_json
 from agents.youtube_channels import resolve_youtube_channel
@@ -25,6 +25,21 @@ def _fetch_transcript(video_id: str) -> str:
     return " ".join(chunk["text"].strip() for chunk in transcript if chunk.get("text"))
 
 
+def _resolved_fetch_channel(youtube: object, channel: YouTubeChannel) -> tuple[str, str]:
+    # Trust saved UC... ids first so daily runs never drift because of source input re-resolution.
+    if channel.id.startswith("UC"):
+        return channel.id, channel.name
+
+    if channel.source_input:
+        resolved = resolve_youtube_channel(youtube, channel.source_input)
+        return resolved.id, resolved.name
+
+    raise ValueError(
+        f"Channel '{channel.name}' does not have a valid saved YouTube channel ID. "
+        "Please re-check it in Settings."
+    )
+
+
 def fetch_latest_videos(settings: AppSettings, date_str: str) -> list[SourceVideo]:
     day_dir = raw_day_dir(date_str)
     day_dir.mkdir(parents=True, exist_ok=True)
@@ -38,12 +53,12 @@ def fetch_latest_videos(settings: AppSettings, date_str: str) -> list[SourceVide
     videos: list[SourceVideo] = []
 
     for channel in settings.youtube.channels:
-        resolved_channel = resolve_youtube_channel(youtube, channel.source_input or channel.id)
+        channel_id, channel_name = _resolved_fetch_channel(youtube, channel)
         response = (
             youtube.search()
             .list(
                 part="snippet",
-                channelId=resolved_channel.id,
+                channelId=channel_id,
                 order="date",
                 publishedAfter=published_after,
                 maxResults=settings.youtube.max_videos_per_channel,
@@ -59,8 +74,8 @@ def fetch_latest_videos(settings: AppSettings, date_str: str) -> list[SourceVide
             video = SourceVideo(
                 video_id=video_id,
                 title=snippet.get("title", "Untitled video"),
-                channel_id=resolved_channel.id,
-                channel_name=snippet.get("channelTitle") or resolved_channel.name or channel.name,
+                channel_id=channel_id,
+                channel_name=snippet.get("channelTitle") or channel_name or channel.name,
                 published_at=_parse_published_at(snippet["publishedAt"]),
                 url=f"https://www.youtube.com/watch?v={video_id}",
                 transcript=_fetch_transcript(video_id),

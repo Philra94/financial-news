@@ -41,6 +41,10 @@ export function SettingsPage() {
     setSettings((current) => ({ ...current, [key]: value }))
   }
 
+  function canonicalChannelUrl(channelId: string) {
+    return `https://www.youtube.com/channel/${channelId}`
+  }
+
   async function addChannel() {
     let resolvedChannel = channelCheck
     if (!settings.youtube.api_key) {
@@ -197,7 +201,7 @@ export function SettingsPage() {
 
         <div className="settings-block">
           <div className="settings-intro">
-            Add the YouTube channels you want to scrape each morning by pasting the full YouTube channel URL. The app resolves the real channel ID and display name from the YouTube API automatically.
+            Add the YouTube channels you want to scrape each morning by pasting an exact YouTube channel URL. Supported formats are `https://www.youtube.com/@handle` and `https://www.youtube.com/channel/UC...`. The app resolves the real channel ID and display name from the YouTube API before saving.
           </div>
           <label className="field">
             <span>YouTube channel URL</span>
@@ -228,9 +232,9 @@ export function SettingsPage() {
           </div>
           {channelCheck ? (
             <div className="channel-check channel-check--success">
-              Resolved to <strong>{channelCheck.name}</strong> · {channelCheck.id} ·{' '}
+              Exact match: <strong>{channelCheck.name}</strong> · {channelCheck.id} ·{' '}
               <a href={channelCheck.url} rel="noreferrer" target="_blank">
-                open channel
+                canonical channel page
               </a>
             </div>
           ) : null}
@@ -240,6 +244,11 @@ export function SettingsPage() {
               <li className="channel-list__item" key={`${channel.id}-${channel.name}`}>
                 <div>
                   <strong>{channel.name}</strong> · {channel.id}
+                  <div className="channel-list__meta">
+                    <a href={canonicalChannelUrl(channel.id)} rel="noreferrer" target="_blank">
+                      canonical channel URL
+                    </a>
+                  </div>
                   {channel.source_input ? (
                     <div className="channel-list__meta">added from {channel.source_input}</div>
                   ) : null}
