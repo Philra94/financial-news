@@ -1,7 +1,7 @@
 from datetime import UTC, datetime
 from pathlib import Path
 
-from agents.fetcher import _published_window, fetch_latest_videos
+from agents.fetcher import _fetch_transcript, _published_window, fetch_latest_videos
 from agents.models import AppSettings
 
 
@@ -90,3 +90,32 @@ def test_fetch_latest_videos_persists_transcripts(monkeypatch, tmp_path: Path) -
     assert (tmp_path / "2026-03-27" / "transcripts" / "video-123.txt").read_text(encoding="utf-8") == (
         "Transcript for video-123\n"
     )
+
+
+def test_fetch_transcript_supports_new_api_shape(monkeypatch) -> None:
+    class TranscriptChunk:
+        def __init__(self, text: str) -> None:
+            self.text = text
+
+    class NewApi:
+        def fetch(self, video_id: str, languages: tuple[str, ...]) -> list[TranscriptChunk]:
+            assert video_id == "video-123"
+            assert languages == ("en", "de")
+            return [TranscriptChunk("Hello"), TranscriptChunk("world")]
+
+    monkeypatch.setattr("agents.fetcher.YouTubeTranscriptApi", lambda: NewApi())
+
+    assert _fetch_transcript("video-123") == "Hello world"
+
+
+def test_fetch_transcript_supports_legacy_api_shape(monkeypatch) -> None:
+    class LegacyApi:
+        @staticmethod
+        def get_transcript(video_id: str, languages: tuple[str, ...]) -> list[dict[str, str]]:
+            assert video_id == "video-456"
+            assert languages == ("en", "de")
+            return [{"text": "Legacy"}, {"text": "captions"}]
+
+    monkeypatch.setattr("agents.fetcher.YouTubeTranscriptApi", LegacyApi)
+
+    assert _fetch_transcript("video-456") == "Legacy captions"

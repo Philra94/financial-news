@@ -11,6 +11,8 @@ from agents.paths import raw_day_dir, transcript_path
 from agents.storage import read_json, write_json, write_text
 from agents.youtube_channels import resolve_youtube_channel
 
+TRANSCRIPT_LANGUAGES = ("en", "de")
+
 
 def _parse_published_at(value: str) -> datetime:
     if value.endswith("Z"):
@@ -20,10 +22,20 @@ def _parse_published_at(value: str) -> datetime:
 
 def _fetch_transcript(video_id: str) -> str:
     try:
-        transcript = YouTubeTranscriptApi.get_transcript(video_id)
+        api = YouTubeTranscriptApi()
+        if hasattr(api, "fetch"):
+            transcript = api.fetch(video_id, languages=TRANSCRIPT_LANGUAGES)
+        else:
+            transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=TRANSCRIPT_LANGUAGES)
     except Exception:
         return ""
-    return " ".join(chunk["text"].strip() for chunk in transcript if chunk.get("text"))
+
+    parts: list[str] = []
+    for chunk in transcript:
+        text = chunk.get("text") if isinstance(chunk, dict) else getattr(chunk, "text", "")
+        if text:
+            parts.append(text.strip())
+    return " ".join(part for part in parts if part)
 
 
 def _timezone(settings: AppSettings) -> ZoneInfo:
