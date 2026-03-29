@@ -14,11 +14,13 @@ ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV HOME=/home/app
 ENV BROWSER_USE_HOME=/home/app/.browser-use
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 
 COPY requirements.txt ./
 RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates \
     && pip install --no-cache-dir uv \
     && pip install --no-cache-dir -r requirements.txt \
+    && python -m playwright install --with-deps chromium \
     && rm -rf /var/lib/apt/lists/*
 
 RUN groupadd --gid 1000 app \
@@ -33,11 +35,9 @@ COPY web/backend ./web/backend
 COPY pyproject.toml README.md ./
 COPY --from=frontend-build /app/web/frontend/dist ./web/frontend/dist
 
-RUN chown -R app:app /app /home/app
+RUN chown -R app:app /app /home/app /ms-playwright
 
 USER app
-
-RUN browser-use install
 
 EXPOSE 8080
 
