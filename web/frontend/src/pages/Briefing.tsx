@@ -8,15 +8,21 @@ import type { BriefingResponse } from '../types'
 export function BriefingPage() {
   const { date = '' } = useParams()
   const [briefing, setBriefing] = useState<BriefingResponse | null>(null)
+  const [language, setLanguage] = useState<'de' | 'en'>('de')
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!date) {
       return
     }
-    getBriefing(date).then(setBriefing).catch((loadError) => {
-      setError(loadError instanceof Error ? loadError.message : 'Unable to load briefing.')
-    })
+    getBriefing(date)
+      .then((payload) => {
+        setBriefing(payload)
+        setLanguage(payload.default_language)
+      })
+      .catch((loadError) => {
+        setError(loadError instanceof Error ? loadError.message : 'Unable to load briefing.')
+      })
   }, [date])
 
   if (error) {
@@ -27,6 +33,8 @@ export function BriefingPage() {
     return <p className="empty-state">Loading briefing...</p>
   }
 
+  const selectedMarkdown = briefing.markdowns[language] ?? briefing.markdown
+
   return (
     <article>
       <header className="article-chrome">
@@ -34,8 +42,22 @@ export function BriefingPage() {
           <span>{briefing.date}</span>
           <span>{briefing.claims.length} researchable claims</span>
         </div>
+        {briefing.available_languages.length > 1 ? (
+          <div className="language-switch" aria-label="Briefing language">
+            {briefing.available_languages.map((option) => (
+              <button
+                className={`language-switch__button ${language === option ? 'language-switch__button--active' : ''}`}
+                key={option}
+                onClick={() => setLanguage(option)}
+                type="button"
+              >
+                {option.toUpperCase()}
+              </button>
+            ))}
+          </div>
+        ) : null}
       </header>
-      <MarkdownRenderer claims={briefing.claims} date={briefing.date} markdown={briefing.markdown} />
+      <MarkdownRenderer claims={briefing.claims} date={briefing.date} markdown={selectedMarkdown} />
     </article>
   )
 }

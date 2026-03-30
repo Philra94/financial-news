@@ -50,6 +50,14 @@ def briefing_path(date_str: str) -> Path:
     return report_day_dir(date_str) / "briefing.md"
 
 
+def briefing_english_path(date_str: str) -> Path:
+    return report_day_dir(date_str) / "briefing.en.md"
+
+
+def briefing_german_path(date_str: str) -> Path:
+    return report_day_dir(date_str) / "briefing.de.md"
+
+
 def briefing_metadata_path(date_str: str) -> Path:
     return report_day_dir(date_str) / "briefing.json"
 

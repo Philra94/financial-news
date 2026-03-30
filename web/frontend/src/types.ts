@@ -26,6 +26,9 @@ export type BriefingMetadata = {
 export type BriefingResponse = {
   date: string
   markdown: string
+  markdowns: Record<string, string>
+  default_language: 'de' | 'en'
+  available_languages: Array<'de' | 'en'>
   metadata: BriefingMetadata | null
   claims: Claim[]
 }

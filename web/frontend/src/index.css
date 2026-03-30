@@ -147,6 +147,40 @@ textarea {
   font-size: 0.72rem;
 }
 
+.language-switch {
+  display: inline-flex;
+  gap: 0.2rem;
+  padding: 0.18rem;
+  border: 1px solid rgba(29, 26, 22, 0.16);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.language-switch__button {
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: rgba(29, 26, 22, 0.68);
+  padding: 0.38rem 0.62rem;
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition:
+    background-color 140ms ease,
+    color 140ms ease;
+}
+
+.language-switch__button--active {
+  background: rgba(29, 26, 22, 0.08);
+  color: #1d1a16;
+}
+
+.language-switch__button:hover,
+.language-switch__button:focus-visible {
+  color: #1d1a16;
+}
+
 .briefing-title {
   margin: 0.4rem 0;
   font-size: clamp(2.2rem, 3vw, 3.4rem);

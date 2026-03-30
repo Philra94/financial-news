@@ -23,15 +23,21 @@ function describeRunStatus(job: PipelineJob | null): string {
 
 export function Home() {
   const [briefing, setBriefing] = useState<BriefingResponse | null>(null)
+  const [language, setLanguage] = useState<'de' | 'en'>('de')
   const [error, setError] = useState<string | null>(null)
   const [status, setStatus] = useState<StatusResponse | null>(null)
   const [manualRun, setManualRun] = useState<PipelineJob | null>(null)
   const [manualRunMessage, setManualRunMessage] = useState<string | null>(null)
 
   useEffect(() => {
-    getLatestBriefing().then(setBriefing).catch((loadError) => {
-      setError(loadError instanceof Error ? loadError.message : 'Unable to load briefing.')
-    })
+    getLatestBriefing()
+      .then((payload) => {
+        setBriefing(payload)
+        setLanguage(payload.default_language)
+      })
+      .catch((loadError) => {
+        setError(loadError instanceof Error ? loadError.message : 'Unable to load briefing.')
+      })
     getStatus().then((payload) => {
       setStatus(payload)
       setManualRun(payload.manual_runs.latest)
@@ -86,9 +92,14 @@ export function Home() {
     if (manualRun?.status !== 'completed') {
       return
     }
-    getLatestBriefing().then(setBriefing).catch(() => {
-      // Keep the previous briefing if refresh fails.
-    })
+    getLatestBriefing()
+      .then((payload) => {
+        setBriefing(payload)
+        setLanguage(payload.default_language)
+      })
+      .catch(() => {
+        // Keep the previous briefing if refresh fails.
+      })
   }, [manualRun?.status])
 
   async function handleManualRun() {
@@ -117,6 +128,7 @@ export function Home() {
   const manualRunBusy = manualRun?.status === 'queued' || manualRun?.status === 'running'
   const workerLabel = status?.pipeline.worker_running ? 'Connected' : 'Offline'
   const runLabel = manualRun ? manualRun.status : 'idle'
+  const selectedMarkdown = briefing.markdowns[language] ?? briefing.markdown
 
   return (
     <article>
@@ -125,6 +137,20 @@ export function Home() {
           <span>{briefing.date}</span>
           <span>{briefing.claims.length} researchable claims</span>
         </div>
+        {briefing.available_languages.length > 1 ? (
+          <div className="language-switch" aria-label="Briefing language">
+            {briefing.available_languages.map((option) => (
+              <button
+                className={`language-switch__button ${language === option ? 'language-switch__button--active' : ''}`}
+                key={option}
+                onClick={() => setLanguage(option)}
+                type="button"
+              >
+                {option.toUpperCase()}
+              </button>
+            ))}
+          </div>
+        ) : null}
         <details className="desk-menu">
           <summary className="desk-menu__summary">Desk</summary>
           <div className="desk-menu__panel">
@@ -167,7 +193,7 @@ export function Home() {
           </div>
         </details>
       </header>
-      <MarkdownRenderer claims={briefing.claims} date={briefing.date} markdown={briefing.markdown} />
+      <MarkdownRenderer claims={briefing.claims} date={briefing.date} markdown={selectedMarkdown} />
     </article>
   )
 }

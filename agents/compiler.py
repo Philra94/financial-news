@@ -6,7 +6,13 @@ from collections import defaultdict
 from datetime import UTC, datetime
 
 from agents.models import AppSettings, BriefingIndexItem, VideoAnalysis
-from agents.paths import briefing_metadata_path, briefing_path, report_day_dir
+from agents.paths import (
+    briefing_english_path,
+    briefing_german_path,
+    briefing_metadata_path,
+    briefing_path,
+    report_day_dir,
+)
 from agents.prompts_loader import render_prompt
 from agents.runner import build_runner
 from agents.storage import write_json, write_text
@@ -22,6 +28,23 @@ def _section_for_analysis(analysis: VideoAnalysis) -> str:
     if {"commodities"} & tags:
         return "COMMODITIES"
     return "WATCHLIST"
+
+
+def _normalize_markdown(markdown: str) -> str:
+    normalized = markdown.strip()
+    if not normalized:
+        raise RuntimeError("Agent returned empty markdown")
+    if not normalized.endswith("\n"):
+        normalized += "\n"
+    return normalized
+
+
+def _translate_briefing_to_german(settings: AppSettings, markdown: str, date_str: str) -> str:
+    workspace = report_day_dir(date_str) / "agent-translate"
+    prompt = render_prompt("translate_briefing_german.md", markdown=markdown)
+    runner = build_runner(settings.agent.backend, workspace, settings.agent.research_timeout_seconds)
+    translated = unwrap_markdown_response(asyncio.run(runner.run(prompt, [])))
+    return _normalize_markdown(translated)
 
 
 def compile_briefing(settings: AppSettings, analyses: list[VideoAnalysis], date_str: str) -> str:
@@ -55,12 +78,12 @@ def compile_briefing(settings: AppSettings, analyses: list[VideoAnalysis], date_
     )
     workspace = day_dir / "agent-compile"
     runner = build_runner(settings.agent.backend, workspace, settings.agent.research_timeout_seconds)
-    markdown = unwrap_markdown_response(asyncio.run(runner.run(prompt, [])))
-    if not markdown.strip():
-        raise RuntimeError("Compile agent returned empty markdown")
-    if not markdown.endswith("\n"):
-        markdown += "\n"
-    write_text(briefing_path(date_str), markdown)
+    english_markdown = _normalize_markdown(unwrap_markdown_response(asyncio.run(runner.run(prompt, []))))
+    german_markdown = _translate_briefing_to_german(settings, english_markdown, date_str)
+
+    write_text(briefing_english_path(date_str), english_markdown)
+    write_text(briefing_german_path(date_str), german_markdown)
+    write_text(briefing_path(date_str), german_markdown)
 
     item = BriefingIndexItem(
         date=date_str,
@@ -71,4 +94,4 @@ def compile_briefing(settings: AppSettings, analyses: list[VideoAnalysis], date_
         or datetime.now(UTC),
     )
     write_json(briefing_metadata_path(date_str), item.model_dump(mode="json"))
-    return markdown
+    return german_markdown
