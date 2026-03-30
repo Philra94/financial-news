@@ -41,6 +41,8 @@ def analyze_videos(settings: AppSettings, videos: list[SourceVideo], date_str: s
     all_claims: list[Claim] = []
 
     for video in videos:
+        if not video.transcript.strip():
+            continue
         payload = asyncio.run(_agent_analysis(settings, video, date_str))
         if not payload:
             raise RuntimeError(f"Agent analysis returned no payload for video {video.video_id}")
