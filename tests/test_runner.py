@@ -41,3 +41,4 @@ def test_claude_runner_defaults_to_bypass_permissions() -> None:
     runner = ClaudeCodeRunner(workspace=Path("/tmp/workspace"), timeout_seconds=5)
 
     assert runner.default_command == ["claude", "--print", "--dangerously-skip-permissions"]
+    assert runner.pass_prompt_via_stdin is True

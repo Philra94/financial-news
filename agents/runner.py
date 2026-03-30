@@ -15,6 +15,7 @@ class AgentRunner(ABC):
     def __init__(self, workspace: Path, timeout_seconds: int) -> None:
         self.workspace = workspace
         self.timeout_seconds = timeout_seconds
+        self.pass_prompt_via_stdin = False
 
     @abstractmethod
     async def run(self, task_prompt: str, skills: list[Path]) -> str:
@@ -42,14 +43,19 @@ class AgentRunner(ABC):
             shutil.copytree(project_agents_dir, workspace_agents_dir)
 
     async def _run_command(self, command: list[str], task_prompt: str) -> str:
+        prompt_bytes = task_prompt.encode("utf-8")
+        process_args = command if self.pass_prompt_via_stdin else [*command, task_prompt]
         process = await asyncio.create_subprocess_exec(
-            *command,
-            task_prompt,
+            *process_args,
             cwd=str(self.workspace),
+            stdin=asyncio.subprocess.PIPE if self.pass_prompt_via_stdin else None,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
-        stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=self.timeout_seconds)
+        stdout, stderr = await asyncio.wait_for(
+            process.communicate(prompt_bytes if self.pass_prompt_via_stdin else None),
+            timeout=self.timeout_seconds,
+        )
         if process.returncode != 0:
             raise RuntimeError(stderr.decode("utf-8", errors="ignore") or "Agent CLI failed")
         return stdout.decode("utf-8", errors="ignore").strip()
@@ -79,6 +85,10 @@ class SubprocessRunner(AgentRunner):
 class ClaudeCodeRunner(SubprocessRunner):
     env_var_name = "FINNEWS_CLAUDE_CODE_CMD"
     default_command = ["claude", "--print", "--dangerously-skip-permissions"]
+
+    def __init__(self, workspace: Path, timeout_seconds: int) -> None:
+        super().__init__(workspace, timeout_seconds)
+        self.pass_prompt_via_stdin = True
 
 
 class CodexRunner(SubprocessRunner):
