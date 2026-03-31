@@ -9,6 +9,10 @@ from pydantic import BaseModel, Field
 AgentBackend = Literal["claude-code", "codex", "cursor", "copilot"]
 ClaimStatus = Literal["pending", "queued", "researching", "completed", "failed"]
 PipelineJobStatus = Literal["queued", "running", "completed", "failed"]
+TranscriptionBackend = Literal["captions_only", "captions_then_local", "local_only"]
+TranscriptSource = Literal["captions", "faster_whisper", "none"]
+TranscriptStatus = Literal["pending", "completed", "failed", "skipped"]
+TranscriptOutputFormat = Literal["txt", "json", "vtt"]
 
 
 class YouTubeChannel(BaseModel):
@@ -41,6 +45,22 @@ class CapitalIQSettings(BaseModel):
     password: str = ""
 
 
+class TranscriptionSettings(BaseModel):
+    backend: TranscriptionBackend = "captions_then_local"
+    model: str = "large-v3"
+    device: str = "auto"
+    compute_type: str = "auto"
+    language: str = ""
+    caption_languages: list[str] = Field(default_factory=lambda: ["en", "de"])
+    vad_filter: bool = True
+    beam_size: int = 5
+    temperature: float = 0.0
+    condition_on_previous_text: bool = True
+    keep_audio: bool = False
+    max_duration_minutes: int = 90
+    output_formats: list[TranscriptOutputFormat] = Field(default_factory=lambda: ["txt", "json", "vtt"])
+
+
 class ScheduleSettings(BaseModel):
     fetch_cron: str = "0 5 * * *"
     timezone: str = "Europe/Berlin"
@@ -57,8 +77,15 @@ class AppSettings(BaseModel):
     agent: AgentSettings = Field(default_factory=AgentSettings)
     google_search: GoogleSearchSettings = Field(default_factory=GoogleSearchSettings)
     capital_iq: CapitalIQSettings = Field(default_factory=CapitalIQSettings)
+    transcription: TranscriptionSettings = Field(default_factory=TranscriptionSettings)
     schedule: ScheduleSettings = Field(default_factory=ScheduleSettings)
     site: SiteSettings = Field(default_factory=SiteSettings)
+
+
+class TranscriptSegment(BaseModel):
+    start_seconds: float
+    end_seconds: float
+    text: str
 
 
 class SourceVideo(BaseModel):
@@ -69,8 +96,14 @@ class SourceVideo(BaseModel):
     published_at: datetime
     url: str
     transcript: str = ""
+    transcript_source: TranscriptSource = "none"
+    transcript_language: str | None = None
+    transcript_status: TranscriptStatus = "pending"
+    transcription_error: str | None = None
     thumbnail_url: str | None = None
     description: str = ""
+    duration_seconds: int | None = None
+    default_audio_language: str | None = None
 
 
 class Opinion(BaseModel):

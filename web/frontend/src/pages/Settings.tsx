@@ -23,6 +23,21 @@ const EMPTY_SETTINGS: AppSettings = {
     username: '',
     password: '',
   },
+  transcription: {
+    backend: 'captions_then_local',
+    model: 'large-v3',
+    device: 'auto',
+    compute_type: 'auto',
+    language: '',
+    caption_languages: ['en', 'de'],
+    vad_filter: true,
+    beam_size: 5,
+    temperature: 0,
+    condition_on_previous_text: true,
+    keep_audio: false,
+    max_duration_minutes: 90,
+    output_formats: ['txt', 'json', 'vtt'],
+  },
   schedule: {
     fetch_cron: '0 5 * * *',
     timezone: 'Europe/Berlin',
@@ -259,6 +274,196 @@ export function SettingsPage() {
                 })
               }
             />
+          </label>
+        </section>
+
+        <section className="settings-section">
+          <div className="settings-section__header">
+            <div className="section-label">Transcription</div>
+            <h2 className="settings-section__title">Local Whisper pipeline</h2>
+          </div>
+          <div className="field-row">
+            <label className="field">
+              <span>Transcript strategy</span>
+              <select
+                value={settings.transcription.backend}
+                onChange={(event) =>
+                  updateField('transcription', { ...settings.transcription, backend: event.target.value as AppSettings['transcription']['backend'] })
+                }
+              >
+                <option value="captions_then_local">Captions first, then local Whisper</option>
+                <option value="local_only">Always use local Whisper</option>
+                <option value="captions_only">Only use captions</option>
+              </select>
+            </label>
+            <label className="field">
+              <span>Whisper model</span>
+              <input
+                value={settings.transcription.model}
+                onChange={(event) =>
+                  updateField('transcription', { ...settings.transcription, model: event.target.value })
+                }
+              />
+            </label>
+          </div>
+          <div className="field-row">
+            <label className="field">
+              <span>Device</span>
+              <input
+                value={settings.transcription.device}
+                onChange={(event) =>
+                  updateField('transcription', { ...settings.transcription, device: event.target.value })
+                }
+              />
+            </label>
+            <label className="field">
+              <span>Compute type</span>
+              <input
+                value={settings.transcription.compute_type}
+                onChange={(event) =>
+                  updateField('transcription', { ...settings.transcription, compute_type: event.target.value })
+                }
+              />
+            </label>
+          </div>
+          <div className="field-row">
+            <label className="field">
+              <span>Caption languages</span>
+              <input
+                value={settings.transcription.caption_languages.join(', ')}
+                onChange={(event) =>
+                  updateField('transcription', {
+                    ...settings.transcription,
+                    caption_languages: event.target.value
+                      .split(',')
+                      .map((value) => value.trim())
+                      .filter(Boolean),
+                  })
+                }
+              />
+            </label>
+            <label className="field">
+              <span>Forced language override</span>
+              <input
+                placeholder="Leave blank for auto-detect"
+                value={settings.transcription.language}
+                onChange={(event) =>
+                  updateField('transcription', { ...settings.transcription, language: event.target.value })
+                }
+              />
+            </label>
+          </div>
+          <div className="field-row">
+            <label className="field">
+              <span>Beam size</span>
+              <input
+                min={1}
+                type="number"
+                value={settings.transcription.beam_size}
+                onChange={(event) =>
+                  updateField('transcription', {
+                    ...settings.transcription,
+                    beam_size: Number(event.target.value || 1),
+                  })
+                }
+              />
+            </label>
+            <label className="field">
+              <span>Max duration in minutes</span>
+              <input
+                min={1}
+                type="number"
+                value={settings.transcription.max_duration_minutes}
+                onChange={(event) =>
+                  updateField('transcription', {
+                    ...settings.transcription,
+                    max_duration_minutes: Number(event.target.value || 1),
+                  })
+                }
+              />
+            </label>
+          </div>
+          <div className="field-row">
+            <label className="field">
+              <span>Temperature</span>
+              <input
+                min={0}
+                step={0.1}
+                type="number"
+                value={settings.transcription.temperature}
+                onChange={(event) =>
+                  updateField('transcription', {
+                    ...settings.transcription,
+                    temperature: Number(event.target.value || 0),
+                  })
+                }
+              />
+            </label>
+            <label className="field">
+              <span>Artifacts</span>
+              <input
+                value={settings.transcription.output_formats.join(', ')}
+                onChange={(event) =>
+                  updateField('transcription', {
+                    ...settings.transcription,
+                    output_formats: event.target.value
+                      .split(',')
+                      .map((value) => value.trim())
+                      .filter((value): value is 'txt' | 'json' | 'vtt' => ['txt', 'json', 'vtt'].includes(value)),
+                  })
+                }
+              />
+            </label>
+          </div>
+          <div className="field-row">
+            <label className="field">
+              <span>Use VAD filtering</span>
+              <select
+                value={settings.transcription.vad_filter ? 'true' : 'false'}
+                onChange={(event) =>
+                  updateField('transcription', {
+                    ...settings.transcription,
+                    vad_filter: event.target.value === 'true',
+                  })
+                }
+              >
+                <option value="true">Enabled</option>
+                <option value="false">Disabled</option>
+              </select>
+            </label>
+            <label className="field">
+              <span>Keep downloaded audio</span>
+              <select
+                value={settings.transcription.keep_audio ? 'true' : 'false'}
+                onChange={(event) =>
+                  updateField('transcription', {
+                    ...settings.transcription,
+                    keep_audio: event.target.value === 'true',
+                  })
+                }
+              >
+                <option value="false">Delete after transcription</option>
+                <option value="true">Keep cached audio</option>
+              </select>
+            </label>
+          </div>
+          <label className="field">
+            <span>Condition on previous text</span>
+            <select
+              value={settings.transcription.condition_on_previous_text ? 'true' : 'false'}
+              onChange={(event) =>
+                updateField('transcription', {
+                  ...settings.transcription,
+                  condition_on_previous_text: event.target.value === 'true',
+                })
+              }
+            >
+              <option value="true">Enabled</option>
+              <option value="false">Disabled</option>
+            </select>
+            <div className="form-note">
+              These settings control the local `faster-whisper` fallback used when captions are unavailable or disabled.
+            </div>
           </label>
         </section>
 

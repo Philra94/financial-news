@@ -34,6 +34,42 @@ def transcript_path(date_str: str, video_id: str) -> Path:
     return transcript_dir(date_str) / f"{video_id}.txt"
 
 
+def transcript_segments_dir(date_str: str) -> Path:
+    return transcript_dir(date_str) / "segments"
+
+
+def transcript_segments_path(date_str: str, video_id: str) -> Path:
+    return transcript_segments_dir(date_str) / f"{video_id}.json"
+
+
+def transcript_metadata_dir(date_str: str) -> Path:
+    return transcript_dir(date_str) / "metadata"
+
+
+def transcript_metadata_path(date_str: str, video_id: str) -> Path:
+    return transcript_metadata_dir(date_str) / f"{video_id}.json"
+
+
+def transcript_vtt_dir(date_str: str) -> Path:
+    return transcript_dir(date_str) / "vtt"
+
+
+def transcript_vtt_path(date_str: str, video_id: str) -> Path:
+    return transcript_vtt_dir(date_str) / f"{video_id}.vtt"
+
+
+def downloaded_audio_dir(date_str: str) -> Path:
+    return raw_day_dir(date_str) / "audio" / "downloaded"
+
+
+def normalized_audio_dir(date_str: str) -> Path:
+    return raw_day_dir(date_str) / "audio" / "normalized"
+
+
+def normalized_audio_path(date_str: str, video_id: str) -> Path:
+    return normalized_audio_dir(date_str) / f"{video_id}.wav"
+
+
 def report_day_dir(date_str: str) -> Path:
     return REPORTS_DIR / date_str
 

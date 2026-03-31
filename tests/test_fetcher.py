@@ -1,7 +1,7 @@
 from datetime import UTC, datetime
 from pathlib import Path
 
-from agents.fetcher import _fetch_transcript, _published_window, fetch_latest_videos
+from agents.fetcher import _parse_duration_seconds, _published_window, fetch_latest_videos
 from agents.models import AppSettings
 
 
@@ -71,51 +71,59 @@ def test_fetch_latest_videos_persists_transcripts(monkeypatch, tmp_path: Path) -
         def list(self, **_: object) -> FakeSearchRequest:
             return FakeSearchRequest()
 
+    class FakeVideosRequest:
+        def execute(self) -> dict:
+            return {
+                "items": [
+                    {
+                        "id": "video-123",
+                        "snippet": {
+                            "title": "Market Update",
+                            "channelTitle": "Example Channel",
+                            "description": "Daily market recap",
+                            "defaultAudioLanguage": "en-US",
+                        },
+                        "contentDetails": {"duration": "PT12M30S"},
+                    }
+                ]
+            }
+
+    class FakeVideos:
+        def list(self, **_: object) -> FakeVideosRequest:
+            return FakeVideosRequest()
+
     class FakeYouTube:
         def search(self) -> FakeSearch:
             return FakeSearch()
 
+        def videos(self) -> FakeVideos:
+            return FakeVideos()
+
     monkeypatch.setattr("agents.fetcher.build", lambda *args, **kwargs: FakeYouTube())
-    monkeypatch.setattr("agents.fetcher._fetch_transcript", lambda video_id: f"Transcript for {video_id}")
     monkeypatch.setattr("agents.fetcher.raw_day_dir", lambda date_str: tmp_path / date_str)
-    monkeypatch.setattr(
-        "agents.fetcher.transcript_path",
-        lambda date_str, video_id: tmp_path / date_str / "transcripts" / f"{video_id}.txt",
-    )
+
+    def fake_transcribe(settings: AppSettings, date_str: str, video):
+        assert date_str == "2026-03-27"
+        video.transcript = f"Transcript for {video.video_id}"
+        video.transcript_source = "faster_whisper"
+        video.transcript_status = "completed"
+        return video
+
+    monkeypatch.setattr("agents.fetcher.transcribe_source_video", fake_transcribe)
 
     videos = fetch_latest_videos(settings, "2026-03-27")
 
     assert len(videos) == 1
     assert videos[0].transcript == "Transcript for video-123"
-    assert (tmp_path / "2026-03-27" / "transcripts" / "video-123.txt").read_text(encoding="utf-8") == (
-        "Transcript for video-123\n"
-    )
+    assert videos[0].duration_seconds == 750
+    assert videos[0].default_audio_language == "en-US"
+    assert videos[0].transcript_source == "faster_whisper"
 
+    payload = (tmp_path / "2026-03-27" / "videos.json").read_text(encoding="utf-8")
+    assert "Transcript for video-123" in payload
 
-def test_fetch_transcript_supports_new_api_shape(monkeypatch) -> None:
-    class TranscriptChunk:
-        def __init__(self, text: str) -> None:
-            self.text = text
-
-    class NewApi:
-        def fetch(self, video_id: str, languages: tuple[str, ...]) -> list[TranscriptChunk]:
-            assert video_id == "video-123"
-            assert languages == ("en", "de")
-            return [TranscriptChunk("Hello"), TranscriptChunk("world")]
-
-    monkeypatch.setattr("agents.fetcher.YouTubeTranscriptApi", lambda: NewApi())
-
-    assert _fetch_transcript("video-123") == "Hello world"
-
-
-def test_fetch_transcript_supports_legacy_api_shape(monkeypatch) -> None:
-    class LegacyApi:
-        @staticmethod
-        def get_transcript(video_id: str, languages: tuple[str, ...]) -> list[dict[str, str]]:
-            assert video_id == "video-456"
-            assert languages == ("en", "de")
-            return [{"text": "Legacy"}, {"text": "captions"}]
-
-    monkeypatch.setattr("agents.fetcher.YouTubeTranscriptApi", LegacyApi)
-
-    assert _fetch_transcript("video-456") == "Legacy captions"
+def test_parse_duration_seconds_supports_standard_youtube_iso8601() -> None:
+    assert _parse_duration_seconds("PT1H2M3S") == 3723
+    assert _parse_duration_seconds("PT45M") == 2700
+    assert _parse_duration_seconds("PT59S") == 59
+    assert _parse_duration_seconds(None) is None

@@ -118,6 +118,21 @@ export type AppSettings = {
     username: string
     password: string
   }
+  transcription: {
+    backend: 'captions_only' | 'captions_then_local' | 'local_only'
+    model: string
+    device: string
+    compute_type: string
+    language: string
+    caption_languages: string[]
+    vad_filter: boolean
+    beam_size: number
+    temperature: number
+    condition_on_previous_text: boolean
+    keep_audio: boolean
+    max_duration_minutes: number
+    output_formats: Array<'txt' | 'json' | 'vtt'>
+  }
   schedule: {
     fetch_cron: string
     timezone: string

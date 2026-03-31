@@ -14,8 +14,8 @@ from agents.analyzer import analyze_videos, load_analyses
 from agents.compiler import compile_briefing
 from agents.config import load_pipeline_status, load_settings, save_pipeline_status
 from agents.fetcher import fetch_latest_videos, load_fetched_videos
+from agents.paths import raw_day_dir, SETTINGS_PATH, ensure_directories
 from agents.pipeline import enqueue_pipeline_run, load_pipeline_job, process_next_pipeline_job, run_daily_pipeline
-from agents.paths import SETTINGS_PATH, ensure_directories
 from agents.researcher import (
     enqueue_research,
     list_jobs,
@@ -23,6 +23,8 @@ from agents.researcher import (
     process_next_job,
     research_claim_now,
 )
+from agents.storage import write_json
+from agents.transcriber import transcribe_videos
 
 app = typer.Typer(help="Local agentic financial news workflow.")
 console = Console()
@@ -48,6 +50,38 @@ def analyze(date: str = typer.Option(None, help="Target date in YYYY-MM-DD forma
     videos = load_fetched_videos(target_date)
     analyses = analyze_videos(settings, videos, target_date)
     console.print(f"Analyzed {len(analyses)} videos for {target_date}.")
+
+
+@app.command()
+def transcribe(
+    date: str = typer.Option(None, help="Target date in YYYY-MM-DD format."),
+    video_id: str | None = typer.Option(None, help="Transcribe a single video ID from the fetched set."),
+    force: bool = typer.Option(False, "--force", help="Ignore cached transcript artifacts and rerun transcription."),
+    model: str | None = typer.Option(None, help="Override the configured faster-whisper model for this run."),
+) -> None:
+    settings = load_settings()
+    target_date = date or _today()
+    videos = load_fetched_videos(target_date)
+
+    if video_id is not None:
+        videos = [video for video in videos if video.video_id == video_id]
+    if not videos:
+        console.print(f"No fetched videos found for {target_date}.", style="red")
+        raise typer.Exit(code=1)
+
+    if model:
+        settings.transcription.model = model
+
+    updated_videos = transcribe_videos(settings, target_date, videos, force=force)
+    existing_by_id = {video.video_id: video for video in load_fetched_videos(target_date)}
+    for video in updated_videos:
+        existing_by_id[video.video_id] = video
+
+    persisted = sorted(existing_by_id.values(), key=lambda item: item.published_at, reverse=True)
+    write_json(raw_day_dir(target_date) / "videos.json", [video.model_dump(mode="json") for video in persisted])
+
+    completed = sum(1 for video in updated_videos if video.transcript_status == "completed")
+    console.print(f"Transcribed {completed}/{len(updated_videos)} videos for {target_date}.")
 
 
 @app.command("compile")

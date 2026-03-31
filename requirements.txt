@@ -1,3 +1,4 @@
+faster-whisper
 browser-use
 fastapi
 google-api-python-client
@@ -11,4 +12,5 @@ pyyaml
 rich
 typer>=0.12
 uvicorn[standard]
+yt-dlp
 youtube-transcript-api

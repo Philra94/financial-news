@@ -11,6 +11,7 @@ requires-python = ">=3.11"
 license = { text = "MIT" }
 authors = [{ name = "Philipp Rau" }]
 dependencies = [
+  "faster-whisper",
   "fastapi",
   "google-api-python-client",
   "httpx",
@@ -22,6 +23,7 @@ dependencies = [
   "rich",
   "typer>=0.12",
   "uvicorn[standard]",
+  "yt-dlp",
   "youtube-transcript-api",
 ]
 

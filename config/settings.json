@@ -19,6 +19,28 @@
     "username": "",
     "password": ""
   },
+  "transcription": {
+    "backend": "captions_then_local",
+    "model": "large-v3",
+    "device": "auto",
+    "compute_type": "auto",
+    "language": "",
+    "caption_languages": [
+      "en",
+      "de"
+    ],
+    "vad_filter": true,
+    "beam_size": 5,
+    "temperature": 0.0,
+    "condition_on_previous_text": true,
+    "keep_audio": false,
+    "max_duration_minutes": 90,
+    "output_formats": [
+      "txt",
+      "json",
+      "vtt"
+    ]
+  },
   "schedule": {
     "fetch_cron": "0 5 * * *",
     "timezone": "Europe/Berlin"
