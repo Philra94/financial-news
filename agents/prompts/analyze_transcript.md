@@ -5,6 +5,14 @@ Return JSON with this structure:
   "summary": "2-3 sentence neutral summary",
   "topic_tags": ["macro", "equities"],
   "tickers": ["NVDA", "TSLA"],
+  "research_tasks": [
+    {
+      "task_type": "sp_data_research",
+      "topic": "Microsoft stock valuation",
+      "goal": "Use S&P Capital IQ to enrich the stock section with current valuation and price context.",
+      "priority": "high"
+    }
+  ],
   "opinions": [
     {
       "quote": "Exact quote from transcript",
@@ -26,6 +34,15 @@ Rules:
 - Opinions must be direct quotes when available.
 - Claims should be factual assertions, not vibes.
 - Prefer up to 5 strong claims and 3 strong opinions.
+- You are the planning agent. Decide whether follow-up sub-agents are appropriate after this first pass.
+- Return `research_tasks` as an empty list when no follow-up research is needed.
+- Return at most 3 research tasks.
+- Allowed `task_type` values:
+  - `sp_data_research`
+- Use `sp_data_research` only when S&P / Capital IQ data would materially improve the final briefing.
+- Give special weight to stock-heavy follow-ups: price action, market cap, enterprise value, shares outstanding, and valuation multiples are better follow-up angles than generic company background.
+- Keep each task tightly scoped. The `topic` should be short and specific, and the `goal` should explain what the sub-agent should add.
+- Do not try to perform the follow-up research yourself in this step. Only plan it.
 
 Video title: {{title}}
 Channel: {{channel}}

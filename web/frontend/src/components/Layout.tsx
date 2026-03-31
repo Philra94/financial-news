@@ -15,9 +15,6 @@ export function Layout({ children }: LayoutProps) {
           <div className="masthead-copy">
             <div className="masthead-kicker">Local financial edition</div>
             <div className="masthead-title">Agentic Financial News</div>
-            <p className="masthead-summary">
-              A local editorial feed built from your selected market channels, with research available on demand.
-            </p>
           </div>
           <nav className="top-nav" aria-label="Primary">
             <NavLink className={navClassName} to="/">

@@ -52,7 +52,7 @@ textarea {
 .masthead {
   max-width: 980px;
   margin: 0 auto;
-  padding: clamp(1.6rem, 4vw, 2.75rem) clamp(1rem, 4vw, 1.5rem) clamp(1rem, 2.5vw, 1.25rem);
+  padding: clamp(1rem, 3vw, 1.75rem) clamp(1rem, 4vw, 1.5rem) clamp(0.8rem, 2vw, 1rem);
   border-bottom: 1px solid rgba(29, 26, 22, 0.22);
 }
 
@@ -80,16 +80,15 @@ textarea {
 }
 
 .masthead-title {
-  font-size: clamp(2rem, 3vw, 3rem);
-  line-height: 1.05;
-  margin: 0.3rem 0 0.55rem;
+  font-size: clamp(1.45rem, 2.8vw, 2.2rem);
+  line-height: 1.1;
+  margin: 0.25rem 0 0;
 }
 
 .masthead-copy {
   max-width: 42rem;
 }
 
-.masthead-summary,
 .page-lead {
   margin: 0;
   color: rgba(29, 26, 22, 0.72);
@@ -127,8 +126,8 @@ textarea {
 .article-chrome {
   display: flex;
   justify-content: space-between;
-  align-items: start;
-  gap: 1rem;
+  align-items: center;
+  gap: 0.75rem;
   margin-bottom: 1rem;
 }
 
@@ -140,30 +139,27 @@ textarea {
 .article-meta {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.8rem;
+  align-items: center;
+  gap: 0.6rem;
   row-gap: 0.35rem;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  font-size: 0.72rem;
+  font-size: 0.82rem;
 }
 
 .language-switch {
   display: inline-flex;
-  gap: 0.2rem;
-  padding: 0.18rem;
-  border: 1px solid rgba(29, 26, 22, 0.16);
+  gap: 0.1rem;
+  padding: 0.12rem;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.3);
 }
 
 .language-switch__button {
   border: 0;
   border-radius: 999px;
   background: transparent;
-  color: rgba(29, 26, 22, 0.68);
-  padding: 0.38rem 0.62rem;
-  font-size: 0.7rem;
-  letter-spacing: 0.08em;
+  color: rgba(29, 26, 22, 0.4);
+  padding: 0.18rem 0.42rem;
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   cursor: pointer;
   transition:
@@ -172,8 +168,7 @@ textarea {
 }
 
 .language-switch__button--active {
-  background: rgba(29, 26, 22, 0.08);
-  color: #1d1a16;
+  color: rgba(29, 26, 22, 0.72);
 }
 
 .language-switch__button:hover,
@@ -213,23 +208,33 @@ textarea {
 }
 
 .desk-menu[open] .desk-menu__summary {
-  background: rgba(255, 255, 255, 0.45);
+  color: #1d1a16;
 }
 
 .desk-menu__summary {
   list-style: none;
   cursor: pointer;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  font-size: 0.72rem;
-  color: #c0392b;
-  border: 1px solid rgba(29, 26, 22, 0.18);
-  background: rgba(255, 255, 255, 0.3);
-  padding: 0.55rem 0.85rem;
+  color: rgba(29, 26, 22, 0.45);
+  border: 0;
+  background: transparent;
+  padding: 0.35rem;
+  display: flex;
+  align-items: center;
+  transition: color 140ms ease;
+}
+
+.desk-menu__summary:hover {
+  color: rgba(29, 26, 22, 0.8);
 }
 
 .desk-menu__summary::-webkit-details-marker {
   display: none;
+}
+
+.desk-menu__icon {
+  display: block;
+  width: 18px;
+  height: 18px;
 }
 
 .desk-menu__panel {
@@ -279,7 +284,14 @@ textarea {
   margin-top: 0;
 }
 
-.editorial-markdown h1,
+.editorial-markdown h1 {
+  margin-top: 0.5rem;
+  margin-bottom: 0.6rem;
+  font-size: clamp(1.5rem, 4vw, 2rem);
+  line-height: 1.15;
+  letter-spacing: 0.01em;
+}
+
 .editorial-markdown h2,
 .editorial-markdown h3 {
   margin-top: 2rem;
@@ -723,12 +735,12 @@ button.claim-inline__chip {
   }
 
   .article-chrome {
-    display: grid;
+    display: flex;
   }
 
   .masthead-title {
-    margin-bottom: 0.45rem;
-    font-size: clamp(1.8rem, 8vw, 2.4rem);
+    margin-bottom: 0;
+    font-size: clamp(1.25rem, 5.5vw, 1.55rem);
   }
 
   .top-nav {

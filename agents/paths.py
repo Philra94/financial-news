@@ -58,6 +58,14 @@ def transcript_vtt_path(date_str: str, video_id: str) -> Path:
     return transcript_vtt_dir(date_str) / f"{video_id}.vtt"
 
 
+def analysis_subtasks_dir(date_str: str) -> Path:
+    return raw_day_dir(date_str) / "sub-analyses"
+
+
+def video_subtasks_dir(date_str: str, video_id: str) -> Path:
+    return analysis_subtasks_dir(date_str) / video_id
+
+
 def downloaded_audio_dir(date_str: str) -> Path:
     return raw_day_dir(date_str) / "audio" / "downloaded"
 

@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 import { getLatestBriefing, getPipelineRun, getStatus, queuePipelineRun } from '../lib/api'
 import type { BriefingResponse, PipelineJob, StatusResponse } from '../types'
 import { MarkdownRenderer } from '../components/MarkdownRenderer'
+import { formatReadableDate } from '../lib/date'
 
 function describeRunStatus(job: PipelineJob | null): string {
   if (!job) {
@@ -134,25 +135,28 @@ export function Home() {
     <article>
       <header className="article-chrome">
         <div className="article-meta">
-          <span>{briefing.date}</span>
-          <span>{briefing.claims.length} researchable claims</span>
+          <span>{formatReadableDate(briefing.date)}</span>
+          {briefing.available_languages.length > 1 ? (
+            <div className="language-switch" aria-label="Briefing language">
+              {briefing.available_languages.map((option) => (
+                <button
+                  className={`language-switch__button ${language === option ? 'language-switch__button--active' : ''}`}
+                  key={option}
+                  onClick={() => setLanguage(option)}
+                  type="button"
+                >
+                  {option.toUpperCase()}
+                </button>
+              ))}
+            </div>
+          ) : null}
         </div>
-        {briefing.available_languages.length > 1 ? (
-          <div className="language-switch" aria-label="Briefing language">
-            {briefing.available_languages.map((option) => (
-              <button
-                className={`language-switch__button ${language === option ? 'language-switch__button--active' : ''}`}
-                key={option}
-                onClick={() => setLanguage(option)}
-                type="button"
-              >
-                {option.toUpperCase()}
-              </button>
-            ))}
-          </div>
-        ) : null}
         <details className="desk-menu">
-          <summary className="desk-menu__summary">Desk</summary>
+          <summary className="desk-menu__summary" aria-label="Desk">
+            <svg className="desk-menu__icon" viewBox="0 0 20 20" fill="currentColor" width="16" height="16">
+              <path fillRule="evenodd" d="M8.34 1.804A1 1 0 019.32 1h1.36a1 1 0 01.98.804l.295 1.473a6.518 6.518 0 011.85 1.07l1.434-.434a1 1 0 011.134.39l.68 1.178a1 1 0 01-.154 1.194l-1.14 1.04a6.6 6.6 0 010 2.14l1.14 1.04a1 1 0 01.154 1.194l-.68 1.178a1 1 0 01-1.134.39l-1.434-.434a6.518 6.518 0 01-1.85 1.07l-.295 1.473a1 1 0 01-.98.804H9.32a1 1 0 01-.98-.804l-.295-1.473a6.518 6.518 0 01-1.85-1.07l-1.434.434a1 1 0 01-1.134-.39l-.68-1.178a1 1 0 01.154-1.194l1.14-1.04a6.6 6.6 0 010-2.14l-1.14-1.04a1 1 0 01-.154-1.194l.68-1.178a1 1 0 011.134-.39l1.434.434a6.518 6.518 0 011.85-1.07L8.34 1.804zM10 13a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" />
+            </svg>
+          </summary>
           <div className="desk-menu__panel">
             <div className="desk-menu__actions">
               <button

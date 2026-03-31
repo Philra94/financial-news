@@ -13,6 +13,8 @@ TranscriptionBackend = Literal["captions_only", "captions_then_local", "local_on
 TranscriptSource = Literal["captions", "faster_whisper", "none"]
 TranscriptStatus = Literal["pending", "completed", "failed", "skipped"]
 TranscriptOutputFormat = Literal["txt", "json", "vtt"]
+ResearchTaskType = Literal["sp_data_research"]
+ResearchTaskPriority = Literal["low", "normal", "high"]
 
 
 class YouTubeChannel(BaseModel):
@@ -129,11 +131,30 @@ class Claim(BaseModel):
     verdict: Literal["supporting", "mixed", "counter", "unknown"] = "unknown"
 
 
+class AnalysisResearchTask(BaseModel):
+    task_type: ResearchTaskType
+    topic: str
+    goal: str
+    priority: ResearchTaskPriority = "normal"
+
+
+class SubAnalysis(BaseModel):
+    task_type: ResearchTaskType
+    topic: str
+    goal: str
+    priority: ResearchTaskPriority = "normal"
+    markdown: str
+    result_path: str | None = None
+
+
 class VideoAnalysis(BaseModel):
     video: SourceVideo
     summary: str
     topic_tags: list[str] = Field(default_factory=list)
     tickers: list[str] = Field(default_factory=list)
+    research_tasks: list[AnalysisResearchTask] = Field(default_factory=list)
+    sub_analyses: list[SubAnalysis] = Field(default_factory=list)
+    sp_enrichment: str = ""
     opinions: list[Opinion] = Field(default_factory=list)
     claims: list[Claim] = Field(default_factory=list)
 

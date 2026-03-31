@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom'
 
 import { MarkdownRenderer } from '../components/MarkdownRenderer'
 import { getBriefing } from '../lib/api'
+import { formatReadableDate } from '../lib/date'
 import type { BriefingResponse } from '../types'
 
 export function BriefingPage() {
@@ -39,23 +40,22 @@ export function BriefingPage() {
     <article>
       <header className="article-chrome">
         <div className="article-meta">
-          <span>{briefing.date}</span>
-          <span>{briefing.claims.length} researchable claims</span>
+          <span>{formatReadableDate(briefing.date)}</span>
+          {briefing.available_languages.length > 1 ? (
+            <div className="language-switch" aria-label="Briefing language">
+              {briefing.available_languages.map((option) => (
+                <button
+                  className={`language-switch__button ${language === option ? 'language-switch__button--active' : ''}`}
+                  key={option}
+                  onClick={() => setLanguage(option)}
+                  type="button"
+                >
+                  {option.toUpperCase()}
+                </button>
+              ))}
+            </div>
+          ) : null}
         </div>
-        {briefing.available_languages.length > 1 ? (
-          <div className="language-switch" aria-label="Briefing language">
-            {briefing.available_languages.map((option) => (
-              <button
-                className={`language-switch__button ${language === option ? 'language-switch__button--active' : ''}`}
-                key={option}
-                onClick={() => setLanguage(option)}
-                type="button"
-              >
-                {option.toUpperCase()}
-              </button>
-            ))}
-          </div>
-        ) : null}
       </header>
       <MarkdownRenderer claims={briefing.claims} date={briefing.date} markdown={selectedMarkdown} />
     </article>
