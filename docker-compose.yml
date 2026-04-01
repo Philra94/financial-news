@@ -6,3 +6,7 @@ services:
     volumes:
       - ./config:/app/config
       - ./data:/app/data
+      # Mount Claude CLI and auth state so container rebuilds do not require re-login.
+      - ${FINNEWS_CLAUDE_BIN_PATH:-/home/ha/.local/bin/claude}:/usr/local/bin/claude:ro
+      - ${FINNEWS_CLAUDE_DIR:-/home/ha/.claude}:/home/app/.claude:ro
+      - ${FINNEWS_CLAUDE_CONFIG_PATH:-/home/ha/.claude.json}:/home/app/.claude.json:ro

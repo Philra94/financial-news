@@ -39,6 +39,43 @@ def _normalize_markdown(markdown: str) -> str:
     return normalized
 
 
+def _fallback_briefing_markdown(settings: AppSettings, analyses: list[VideoAnalysis], date_str: str) -> str:
+    lines = [
+        f"# {settings.site.title}",
+        f"**{date_str} | {settings.site.subtitle}**",
+        "",
+        "---",
+        "",
+        "## MARKET OVERVIEW",
+        "",
+    ]
+    summaries = [analysis.summary.strip() for analysis in analyses if analysis.summary.strip()]
+    if summaries:
+        for summary in summaries[:3]:
+            lines.append(f"- {summary}")
+    else:
+        lines.append("No channel data was available for this date yet.")
+
+    section_labels = ("EQUITIES", "MACRO", "COMMODITIES", "WATCHLIST")
+    grouped: dict[str, list[VideoAnalysis]] = defaultdict(list)
+    for analysis in analyses:
+        grouped[_section_for_analysis(analysis)].append(analysis)
+
+    for section in section_labels:
+        items = grouped.get(section, [])
+        if not items:
+            continue
+        lines.extend(["", "---", "", f"## {section}", ""])
+        for analysis in items:
+            lines.append(f"### {analysis.video.channel_name}: {analysis.video.title}")
+            lines.append(analysis.summary.strip() or "No summary available.")
+            if analysis.sp_enrichment.strip():
+                lines.extend(["", analysis.sp_enrichment.strip()])
+            lines.append("")
+
+    return _normalize_markdown("\n".join(lines))
+
+
 def _translate_briefing_to_german(settings: AppSettings, markdown: str, date_str: str) -> str:
     workspace = report_day_dir(date_str) / "agent-translate"
     prompt = render_prompt("translate_briefing_german.md", markdown=markdown)
@@ -78,8 +115,14 @@ def compile_briefing(settings: AppSettings, analyses: list[VideoAnalysis], date_
     )
     workspace = day_dir / "agent-compile"
     runner = build_runner(settings.agent.backend, workspace, settings.agent.research_timeout_seconds)
-    english_markdown = _normalize_markdown(unwrap_markdown_response(asyncio.run(runner.run(prompt, []))))
-    german_markdown = _translate_briefing_to_german(settings, english_markdown, date_str)
+    try:
+        english_markdown = _normalize_markdown(unwrap_markdown_response(asyncio.run(runner.run(prompt, []))))
+    except Exception:
+        english_markdown = _fallback_briefing_markdown(settings, analyses, date_str)
+    try:
+        german_markdown = _translate_briefing_to_german(settings, english_markdown, date_str)
+    except Exception:
+        german_markdown = english_markdown
 
     write_text(briefing_english_path(date_str), english_markdown)
     write_text(briefing_german_path(date_str), german_markdown)

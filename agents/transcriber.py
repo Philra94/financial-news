@@ -2,15 +2,19 @@ from __future__ import annotations
 
 import shutil
 import subprocess
+import tempfile
 import time
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 from pydantic import BaseModel, Field
+from playwright.sync_api import Page, sync_playwright
 from youtube_transcript_api import YouTubeTranscriptApi
 
 from agents.models import AppSettings, SourceVideo, TranscriptSegment, TranscriptSource, TranscriptStatus
 from agents.paths import (
+    CONFIG_DIR,
     downloaded_audio_dir,
     normalized_audio_path,
     transcript_metadata_path,
@@ -217,12 +221,43 @@ def _download_audio(date_str: str, video: SourceVideo, *, force: bool) -> Path:
     if existing is not None and force:
         existing.unlink(missing_ok=True)
 
+    output_template = downloaded_audio_dir(date_str) / f"{video.video_id}.%(ext)s"
+    direct_error: str | None = None
+    browser_error: str | None = None
+    cookiefile = _configured_youtube_cookiefile()
+
+    try:
+        return _download_audio_with_ytdlp(video.url, output_template, cookiefile=cookiefile)
+    except Exception as exc:
+        direct_error = str(exc)
+
+    cookie_path: Path | None = None
+    try:
+        cookie_path, user_agent = _browser_cookie_file(video.url)
+        return _download_audio_with_ytdlp(video.url, output_template, cookiefile=cookie_path, user_agent=user_agent)
+    except Exception as exc:
+        browser_error = str(exc)
+    finally:
+        _cleanup_audio(cookie_path)
+
+    message = direct_error or "Audio download failed."
+    if browser_error:
+        message = f"{message} Browser-assisted fallback also failed: {browser_error}"
+    raise RuntimeError(message)
+
+
+def _download_audio_with_ytdlp(
+    url: str,
+    output_template: Path,
+    *,
+    cookiefile: Path | None = None,
+    user_agent: str | None = None,
+) -> Path:
     try:
         from yt_dlp import YoutubeDL
     except ImportError as exc:
         raise RuntimeError("yt-dlp is not installed. Add it to the local environment first.") from exc
 
-    output_template = downloaded_audio_dir(date_str) / f"{video.video_id}.%(ext)s"
     options = {
         "format": "bestaudio[acodec^=opus]/bestaudio/best",
         "noplaylist": True,
@@ -233,8 +268,15 @@ def _download_audio(date_str: str, video: SourceVideo, *, force: bool) -> Path:
         "sleep_interval_requests": 1,
         "outtmpl": {"default": str(output_template)},
     }
+    if cookiefile is not None:
+        options["cookiefile"] = str(cookiefile)
+    if user_agent:
+        options["http_headers"] = {
+            "Referer": url,
+            "User-Agent": user_agent,
+        }
     with YoutubeDL(options) as ydl:
-        info = ydl.extract_info(video.url, download=True)
+        info = ydl.extract_info(url, download=True)
         requested = info.get("requested_downloads") or []
         for item in requested:
             filepath = item.get("filepath")
@@ -242,6 +284,82 @@ def _download_audio(date_str: str, video: SourceVideo, *, force: bool) -> Path:
                 return Path(filepath)
         filepath = ydl.prepare_filename(info)
         return Path(filepath)
+
+
+def _configured_youtube_cookiefile() -> Path | None:
+    candidate = CONFIG_DIR / "youtube.cookies.txt"
+    if candidate.exists():
+        return candidate
+    return None
+
+
+def _browser_cookie_file(url: str) -> tuple[Path, str]:
+    cookie_fd, cookie_name = tempfile.mkstemp(prefix="finnews-youtube-", suffix=".cookies.txt")
+    cookie_path = Path(cookie_name)
+    Path(cookie_name).unlink(missing_ok=True)
+    user_agent = ""
+    try:
+        with sync_playwright() as playwright:
+            browser = playwright.chromium.launch(headless=True)
+            context = browser.new_context()
+            page = context.new_page()
+            page.goto(url, wait_until="domcontentloaded", timeout=120000)
+            _dismiss_youtube_consent(page)
+            page.wait_for_timeout(4000)
+            user_agent = page.evaluate("() => navigator.userAgent")
+            cookies = context.cookies()
+            browser.close()
+        _write_netscape_cookie_file(cookie_path, cookies)
+        return cookie_path, user_agent
+    except Exception:
+        cookie_path.unlink(missing_ok=True)
+        raise
+    finally:
+        try:
+            import os
+
+            os.close(cookie_fd)
+        except OSError:
+            pass
+
+
+def _dismiss_youtube_consent(page: Page) -> None:
+    for label in ("Accept all", "I agree", "Alle akzeptieren", "Ich stimme zu"):
+        button = page.get_by_role("button", name=label)
+        if button.count():
+            try:
+                button.first.click(timeout=2000)
+                page.wait_for_timeout(1500)
+                return
+            except Exception:
+                continue
+
+
+def _write_netscape_cookie_file(path: Path, cookies: list[dict[str, Any]]) -> None:
+    lines = ["# Netscape HTTP Cookie File", ""]
+    for cookie in cookies:
+        domain = str(cookie.get("domain") or "")
+        if not domain:
+            continue
+        include_subdomains = "TRUE" if domain.startswith(".") else "FALSE"
+        secure = "TRUE" if cookie.get("secure") else "FALSE"
+        expires = cookie.get("expires")
+        expires_value = str(int(expires)) if isinstance(expires, (int, float)) and expires > 0 else "0"
+        lines.append(
+            "\t".join(
+                [
+                    domain,
+                    include_subdomains,
+                    str(cookie.get("path") or "/"),
+                    secure,
+                    expires_value,
+                    str(cookie.get("name") or ""),
+                    str(cookie.get("value") or ""),
+                ]
+            )
+        )
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("\n".join(lines).rstrip() + "\n", encoding="utf-8")
 
 
 def _normalize_audio(date_str: str, video_id: str, source_path: Path, *, force: bool) -> Path:

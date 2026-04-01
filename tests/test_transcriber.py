@@ -2,7 +2,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from agents.models import AppSettings, SourceVideo, TranscriptSegment
-from agents.transcriber import TranscriptionResult, transcribe_source_video
+from agents.transcriber import TranscriptionResult, _download_audio, transcribe_source_video
 
 
 def _configure_artifact_paths(monkeypatch, tmp_path: Path) -> None:
@@ -146,3 +146,30 @@ def test_transcribe_source_video_skips_local_for_long_videos(monkeypatch, tmp_pa
     assert called["local"] == 0
     assert video.transcript == ""
     assert video.transcript_status == "skipped"
+
+
+def test_download_audio_falls_back_to_browser_assisted_ytdlp(monkeypatch, tmp_path: Path) -> None:
+    _configure_artifact_paths(monkeypatch, tmp_path)
+
+    output_file = tmp_path / "2026-03-30" / "audio" / "downloaded" / "video-123.webm"
+    output_file.parent.mkdir(parents=True, exist_ok=True)
+    cookie_file = tmp_path / "cookies.txt"
+    cookie_file.write_text("cookie", encoding="utf-8")
+
+    monkeypatch.setattr("agents.transcriber._existing_downloaded_audio", lambda *args, **kwargs: None)
+
+    calls: list[tuple[str | None, str | None]] = []
+
+    def fake_download(url: str, output_template: Path, *, cookiefile=None, user_agent=None):
+        calls.append((str(cookiefile) if cookiefile else None, user_agent))
+        if cookiefile is None:
+            raise RuntimeError("direct failed")
+        return output_file
+
+    monkeypatch.setattr("agents.transcriber._download_audio_with_ytdlp", fake_download)
+    monkeypatch.setattr("agents.transcriber._browser_cookie_file", lambda url: (cookie_file, "TestBrowser/1.0"))
+
+    path = _download_audio("2026-03-30", _example_video(), force=False)
+
+    assert path == output_file
+    assert calls == [(None, None), (str(cookie_file), "TestBrowser/1.0")]

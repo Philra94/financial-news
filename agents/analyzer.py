@@ -20,7 +20,7 @@ from agents.paths import SETTINGS_PATH, SKILLS_DIR, claims_manifest_path, raw_da
 from agents.prompts_loader import render_prompt
 from agents.runner import build_runner
 from agents.storage import read_json, write_json, write_text
-from agents.utils import claim_id_from_text, extract_tickers
+from agents.utils import claim_id_from_text, extract_tickers, sentence_chunks
 
 
 def _parse_json_block(text: str) -> dict[str, Any]:
@@ -31,17 +31,190 @@ def _parse_json_block(text: str) -> dict[str, Any]:
     return json.loads(text[start : end + 1])
 
 
-async def _agent_analysis(settings: AppSettings, video: SourceVideo, date_str: str) -> dict[str, Any]:
+FALLBACK_TICKER_PATTERN = re.compile(r"\b[A-Z]{2,5}\b")
+FALLBACK_TICKER_IGNORE = {
+    "ARE",
+    "BACK",
+    "BEI",
+    "BUILT",
+    "CRAZY",
+    "DOWN",
+    "EAST",
+    "EIN",
+    "FOMO",
+    "GOING",
+    "HERE",
+    "IM",
+    "IN",
+    "IRAN",
+    "IS",
+    "IST",
+    "JOIN",
+    "KEINE",
+    "KRIEG",
+    "MESSY",
+    "OF",
+    "ON",
+    "REAL",
+    "SITS",
+    "STEVE",
+    "THERE",
+    "TRUMP",
+    "UND",
+    "VIDEO",
+    "WHY",
+    "ZUR",
+    "AUF",
+}
+
+
+def _analysis_source_material(video: SourceVideo) -> tuple[str, str]:
+    if video.transcript.strip():
+        return "transcript", video.transcript[:16000]
+
+    metadata_parts = [
+        "No transcript was available for this video. Use only the metadata below.",
+        f"Title: {video.title}",
+        f"Channel: {video.channel_name}",
+        f"Description: {video.description.strip() or 'No description provided.'}",
+    ]
+    if video.transcription_error:
+        metadata_parts.append(f"Transcription error: {video.transcription_error}")
+    return "metadata-only", "\n".join(metadata_parts)
+
+
+def _has_analysis_material(video: SourceVideo) -> bool:
+    return bool(video.transcript.strip() or video.title.strip() or video.description.strip())
+
+
+def _clean_metadata_text(value: str) -> str:
+    text = re.sub(r"https?://\S+", "", value)
+    text = re.sub(r"\s+", " ", text).strip()
+    return text
+
+
+def _clean_transcript_text(value: str) -> str:
+    text = re.sub(r"https?://\S+", "", value)
+    text = re.sub(r"\[[^\]]+\]", "", text)
+    text = re.sub(r"\s+", " ", text).strip()
+    return text
+
+
+def _topic_tags_from_text(text: str) -> list[str]:
+    lowered = text.lower()
+    tags: list[str] = []
+    if any(keyword in lowered for keyword in ("inflation", "rates", "fed", "ecb", "treasury", "bond", "macro")):
+        tags.append("macro")
+    if any(
+        keyword in lowered
+        for keyword in ("stock", "stocks", "shares", "equity", "equities", "earnings", "wall street", "analyst", "s&p", "nasdaq", "dow", "ai", "nvidia", "microsoft", "apple", "tesla", "marvell")
+    ):
+        tags.append("equities")
+    if any(keyword in lowered for keyword in ("oil", "gold", "copper", "wti", "brent", "commodity", "commodities")):
+        tags.append("commodities")
+    return tags
+
+
+def _fallback_tickers(text: str) -> list[str]:
+    tickers = {
+        token
+        for token in FALLBACK_TICKER_PATTERN.findall(text)
+        if token not in FALLBACK_TICKER_IGNORE
+    }
+    company_hints = {
+        "nvidia": "NVDA",
+        "microsoft": "MSFT",
+        "apple": "AAPL",
+        "tesla": "TSLA",
+        "marvell": "MRVL",
+        "nike": "NKE",
+        "micron": "MU",
+        "palo alto": "PANW",
+        "servicenow": "NOW",
+        "eli lilly": "LLY",
+        "biogen": "BIIB",
+        "unilever": "UL",
+        "mccormick": "MKC",
+    }
+    lowered = text.lower()
+    for company, ticker in company_hints.items():
+        if company in lowered:
+            tickers.add(ticker)
+    return sorted(tickers)
+
+
+def _fallback_summary_from_transcript(transcript: str) -> str:
+    cleaned = _clean_transcript_text(transcript)
+    chunks = [
+        chunk
+        for chunk in sentence_chunks(cleaned)
+        if len(chunk) >= 45 and not chunk.lower().startswith(("so,", "okay,", "alright", "guten morgen"))
+    ]
+    selected = chunks[:3] or sentence_chunks(cleaned)[:2]
+    summary = " ".join(selected).strip() if selected else cleaned[:420]
+    return summary[:520].strip()
+
+
+def _fallback_analysis_payload(video: SourceVideo) -> dict[str, Any]:
+    if video.transcript.strip():
+        transcript = _clean_transcript_text(video.transcript)
+        summary = _fallback_summary_from_transcript(transcript)
+        topic_source = transcript[:5000]
+        return {
+            "summary": summary or "A transcript-backed market update was available.",
+            "topic_tags": _topic_tags_from_text(topic_source),
+            "tickers": _fallback_tickers(topic_source),
+            "research_tasks": [],
+            "opinions": [],
+            "claims": [],
+        }
+
+    headline = _clean_metadata_text(video.title)
+    description = _clean_metadata_text(video.description)
+    summary = headline or "A channel update was available without transcript text."
+    if description:
+        summary = f"{summary} {description[:280]}".strip()
+    topic_source = f"{headline} {description}".strip()
+    return {
+        "summary": summary,
+        "topic_tags": _topic_tags_from_text(topic_source),
+        "tickers": _fallback_tickers(topic_source),
+        "research_tasks": [],
+        "opinions": [],
+        "claims": [],
+    }
+
+
+async def _agent_analysis(
+    settings: AppSettings, video: SourceVideo, date_str: str, *, retry_on_invalid_json: bool = True
+) -> dict[str, Any]:
+    source_mode, source_material = _analysis_source_material(video)
     prompt = render_prompt(
         "analyze_transcript.md",
         title=video.title,
         channel=video.channel_name,
-        transcript=video.transcript[:16000],
+        source_mode=source_mode,
+        source_material=source_material,
     )
+    if retry_on_invalid_json:
+        prompt += (
+            "\n\nImportant: Return only one valid JSON object that exactly matches the requested schema. "
+            "Do not add commentary, markdown fences, or prose before or after the JSON."
+        )
     workspace = raw_day_dir(date_str) / "agent-analysis" / video.video_id
     runner = build_runner(settings.agent.backend, workspace, settings.agent.research_timeout_seconds)
     text = await runner.run(prompt, [])
-    return _parse_json_block(text)
+    try:
+        return _parse_json_block(text)
+    except Exception:
+        if not retry_on_invalid_json:
+            raise
+        retry_prompt = (
+            prompt
+            + "\n\nYour previous response did not contain valid JSON. Retry now and respond with JSON only."
+        )
+        retry_text = await runner.run(retry_prompt, [])
+        return _parse_json_block(retry_text)
 
 
 def _sp_research_skills() -> list[Path]:
@@ -138,11 +311,14 @@ def analyze_videos(settings: AppSettings, videos: list[SourceVideo], date_str: s
     all_claims: list[Claim] = []
 
     for video in videos:
-        if not video.transcript.strip():
+        if not _has_analysis_material(video):
             continue
-        payload = asyncio.run(_agent_analysis(settings, video, date_str))
+        try:
+            payload = asyncio.run(_agent_analysis(settings, video, date_str))
+        except Exception:
+            payload = _fallback_analysis_payload(video)
         if not payload:
-            raise RuntimeError(f"Agent analysis returned no payload for video {video.video_id}")
+            payload = _fallback_analysis_payload(video)
         research_tasks = _planned_research_tasks(payload)
         sub_analyses: list[SubAnalysis] = []
         for index, task in enumerate(research_tasks, start=1):

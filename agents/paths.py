@@ -14,6 +14,7 @@ PROMPTS_DIR = ROOT_DIR / "agents" / "prompts"
 SKILLS_DIR = ROOT_DIR / ".agents" / "skills"
 FRONTEND_DIST_DIR = ROOT_DIR / "web" / "frontend" / "dist"
 SETTINGS_PATH = CONFIG_DIR / "settings.json"
+SETTINGS_LOCAL_PATH = CONFIG_DIR / "settings.local.json"
 PIPELINE_STATUS_PATH = DATA_DIR / "pipeline_status.json"
 
 

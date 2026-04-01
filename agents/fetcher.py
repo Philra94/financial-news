@@ -55,7 +55,7 @@ def _published_window(
     now_local = now_utc.astimezone(tz)
     if target_date == now_local.date():
         lookback_start = now_local - timedelta(hours=settings.youtube.lookback_hours)
-        return max(start_local, lookback_start).astimezone(UTC), now_utc
+        return lookback_start.astimezone(UTC), now_utc
 
     return start_local.astimezone(UTC), end_local.astimezone(UTC)
 

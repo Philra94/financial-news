@@ -13,9 +13,13 @@ web/frontend/node_modules/
 .DS_Store
 .env
 .local/
+.playwright-mcp/
 config/settings.local.json
+config/youtube.cookies.txt
 data/raw/
 data/research/
 data/jobs/
 data/reports/
+data/logs/
+data/pipeline_status.json
 !data/.gitkeep

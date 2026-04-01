@@ -35,6 +35,21 @@ def test_published_window_clamps_current_day_to_lookback_hours() -> None:
     assert end.isoformat() == "2026-03-29T12:00:00+00:00"
 
 
+def test_published_window_current_day_can_reach_previous_day() -> None:
+    settings = AppSettings()
+    settings.schedule.timezone = "Europe/Berlin"
+    settings.youtube.lookback_hours = 24
+
+    start, end = _published_window(
+        settings,
+        "2026-04-01",
+        now=datetime(2026, 4, 1, 3, 0, tzinfo=UTC),
+    )
+
+    assert start.isoformat() == "2026-03-31T03:00:00+00:00"
+    assert end.isoformat() == "2026-04-01T03:00:00+00:00"
+
+
 def test_fetch_latest_videos_persists_transcripts(monkeypatch, tmp_path: Path) -> None:
     settings = AppSettings.model_validate(
         {

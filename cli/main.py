@@ -159,7 +159,7 @@ def status() -> None:
 @app.command()
 def config() -> None:
     ensure_directories()
-    payload = json.loads(SETTINGS_PATH.read_text(encoding="utf-8"))
+    payload = load_settings().model_dump(mode="json")
     console.print_json(data=payload)
 
 
