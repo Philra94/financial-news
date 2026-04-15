@@ -107,6 +107,8 @@ export type AppSettings = {
   }
   agent: {
     backend: string
+    model: string
+    capital_iq_model: string
     max_concurrent_research: number
     research_timeout_seconds: number
   }
@@ -117,6 +119,10 @@ export type AppSettings = {
   capital_iq: {
     username: string
     password: string
+  }
+  watchlist: {
+    stocks: Array<{ ticker: string; name: string; notes: string }>
+    valuation_refresh_days: number
   }
   transcription: {
     backend: 'captions_only' | 'captions_then_local' | 'local_only'

@@ -19,6 +19,11 @@ from agents.storage import model_from_json, read_json, write_json, write_text
 from agents.utils import unwrap_markdown_response, utc_now
 
 
+def _default_agent_model(settings: AppSettings) -> str | None:
+    model = settings.agent.model.strip()
+    return model or None
+
+
 def load_claim_manifest(date_str: str) -> DailyClaimsManifest:
     manifest = model_from_json(claims_manifest_path(date_str), DailyClaimsManifest)
     return manifest or DailyClaimsManifest(date=date_str, claims=[])
@@ -79,12 +84,7 @@ def _update_claim_status(date_str: str, claim_id: str, status: str, result_path:
 
 
 def _skills() -> list[Path]:
-    return [
-        SKILLS_DIR / "browser" / "SKILL.md",
-        SKILLS_DIR / "financial_data" / "SKILL.md",
-        SKILLS_DIR / "google_search" / "SKILL.md",
-        SKILLS_DIR / "news_search" / "SKILL.md",
-    ]
+    return [SKILLS_DIR / "browser" / "SKILL.md"]
 
 
 async def process_job(settings: AppSettings, job: ResearchJob) -> ResearchResult:
@@ -126,7 +126,12 @@ async def process_job(settings: AppSettings, job: ResearchJob) -> ResearchResult
         source_url=claim.source_url,
         search_context=search_context,
     )
-    runner = build_runner(job.backend, workspace, settings.agent.research_timeout_seconds)
+    runner = build_runner(
+        job.backend,
+        workspace,
+        settings.agent.research_timeout_seconds,
+        model=_default_agent_model(settings),
+    )
     output = unwrap_markdown_response(await runner.run(prompt, _skills()))
     if not output:
         output = "# Claim\n\nNo output was returned by the selected agent."

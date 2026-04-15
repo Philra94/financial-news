@@ -1,26 +1,44 @@
 from __future__ import annotations
 
 import asyncio
+from datetime import date
 import json
+import logging
 from pathlib import Path
 import re
 from typing import Any
 
+from agents.charts import materialize_chart_markdown
+from agents.config import load_pipeline_status, save_pipeline_status
+from agents.config import effective_settings_path
 from agents.models import (
     AnalysisResearchTask,
     AppSettings,
     Claim,
     DailyClaimsManifest,
     Opinion,
+    PipelineStatus,
     SourceVideo,
     SubAnalysis,
     VideoAnalysis,
 )
-from agents.paths import SETTINGS_PATH, SKILLS_DIR, claims_manifest_path, raw_day_dir, video_subtasks_dir
+from agents.paths import SKILLS_DIR, claims_manifest_path, raw_day_dir, report_asset_url, report_charts_dir, video_subtasks_dir
 from agents.prompts_loader import render_prompt
 from agents.runner import build_runner
 from agents.storage import read_json, write_json, write_text
-from agents.utils import claim_id_from_text, extract_tickers, sentence_chunks
+from agents.utils import COMMON_NON_TICKER_TOKENS, claim_id_from_text, extract_tickers, sentence_chunks
+
+logger = logging.getLogger(__name__)
+
+
+def _default_agent_model(settings: AppSettings) -> str | None:
+    model = settings.agent.model.strip()
+    return model or None
+
+
+def _capital_iq_agent_model(settings: AppSettings) -> str | None:
+    model = settings.agent.capital_iq_model.strip() or settings.agent.model.strip()
+    return model or None
 
 
 def _parse_json_block(text: str) -> dict[str, Any]:
@@ -32,39 +50,24 @@ def _parse_json_block(text: str) -> dict[str, Any]:
 
 
 FALLBACK_TICKER_PATTERN = re.compile(r"\b[A-Z]{2,5}\b")
-FALLBACK_TICKER_IGNORE = {
-    "ARE",
-    "BACK",
+FALLBACK_TICKER_IGNORE = COMMON_NON_TICKER_TOKENS | {
+    "AUF",
     "BEI",
-    "BUILT",
-    "CRAZY",
-    "DOWN",
-    "EAST",
     "EIN",
     "FOMO",
-    "GOING",
-    "HERE",
-    "IM",
-    "IN",
-    "IRAN",
-    "IS",
     "IST",
-    "JOIN",
     "KEINE",
     "KRIEG",
     "MESSY",
     "OF",
     "ON",
-    "REAL",
     "SITS",
     "STEVE",
     "THERE",
-    "TRUMP",
     "UND",
     "VIDEO",
     "WHY",
     "ZUR",
-    "AUF",
 }
 
 
@@ -85,6 +88,21 @@ def _analysis_source_material(video: SourceVideo) -> tuple[str, str]:
 
 def _has_analysis_material(video: SourceVideo) -> bool:
     return bool(video.transcript.strip() or video.title.strip() or video.description.strip())
+
+
+def _watchlist_prompt_context(settings: AppSettings) -> str:
+    items = []
+    for stock in settings.watchlist.stocks:
+        ticker = stock.ticker.strip().upper()
+        if not ticker:
+            continue
+        label = ticker
+        if stock.name.strip():
+            label = f"{label} ({stock.name.strip()})"
+        if stock.notes.strip():
+            label = f"{label}: {stock.notes.strip()}"
+        items.append(label)
+    return "\n".join(f"- {item}" for item in items) if items else "No watchlist configured."
 
 
 def _clean_metadata_text(value: str) -> str:
@@ -195,6 +213,7 @@ async def _agent_analysis(
         channel=video.channel_name,
         source_mode=source_mode,
         source_material=source_material,
+        watchlist_context=_watchlist_prompt_context(settings),
     )
     if retry_on_invalid_json:
         prompt += (
@@ -202,7 +221,12 @@ async def _agent_analysis(
             "Do not add commentary, markdown fences, or prose before or after the JSON."
         )
     workspace = raw_day_dir(date_str) / "agent-analysis" / video.video_id
-    runner = build_runner(settings.agent.backend, workspace, settings.agent.research_timeout_seconds)
+    runner = build_runner(
+        settings.agent.backend,
+        workspace,
+        settings.agent.research_timeout_seconds,
+        model=_default_agent_model(settings),
+    )
     text = await runner.run(prompt, [])
     try:
         return _parse_json_block(text)
@@ -221,6 +245,7 @@ def _sp_research_skills() -> list[Path]:
     return [
         SKILLS_DIR / "browser" / "SKILL.md",
         SKILLS_DIR / "capital-iq-browser" / "SKILL.md",
+        SKILLS_DIR / "capital-iq-browser" / "navigation-notes.md",
         SKILLS_DIR / "editorial-graphs" / "SKILL.md",
     ]
 
@@ -242,6 +267,117 @@ def _capital_iq_configured(settings: AppSettings) -> bool:
     return bool(settings.capital_iq.username.strip() and settings.capital_iq.password.strip())
 
 
+def _watchlist_lookup(settings: AppSettings) -> dict[str, tuple[str, str]]:
+    lookup: dict[str, tuple[str, str]] = {}
+    for stock in settings.watchlist.stocks:
+        ticker = stock.ticker.strip().upper()
+        if not ticker:
+            continue
+        lookup[ticker] = (stock.name.strip(), stock.notes.strip())
+    return lookup
+
+
+def _watchlist_matches(settings: AppSettings, video: SourceVideo, payload: dict[str, Any]) -> list[str]:
+    watchlist = _watchlist_lookup(settings)
+    if not watchlist:
+        return []
+
+    payload_tickers = {
+        ticker.strip().upper()
+        for ticker in payload.get("tickers", [])
+        if isinstance(ticker, str) and ticker.strip()
+    }
+    text_parts = [
+        video.title,
+        video.description,
+        video.transcript[:20000],
+        str(payload.get("summary", "")),
+        " ".join(
+            item.get("text", "")
+            for item in payload.get("claims", [])
+            if isinstance(item, dict) and item.get("text")
+        ),
+    ]
+    combined_text = " ".join(part for part in text_parts if part).strip()
+    combined_lower = combined_text.lower()
+    inferred_tickers = set(extract_tickers(combined_text))
+
+    matches: list[str] = []
+    for ticker, (name, _) in watchlist.items():
+        if ticker in payload_tickers or ticker in inferred_tickers:
+            matches.append(ticker)
+            continue
+        if name and name.lower() in combined_lower:
+            matches.append(ticker)
+    return matches
+
+
+def _watchlist_refresh_is_due(last_checked: str | None, target_date: str, refresh_days: int) -> bool:
+    if not last_checked:
+        return True
+    try:
+        current = date.fromisoformat(target_date)
+        previous = date.fromisoformat(last_checked)
+    except ValueError:
+        return True
+    return (current - previous).days >= max(refresh_days, 1)
+
+
+def _task_targets_watchlist_ticker(task: AnalysisResearchTask, ticker: str) -> bool:
+    task_tickers = extract_tickers(f"{task.topic} {task.goal}")
+    return ticker in task_tickers
+
+
+def _auto_watchlist_research_tasks(
+    settings: AppSettings,
+    watchlist_matches: list[str],
+    pipeline_status: PipelineStatus,
+    date_str: str,
+) -> list[AnalysisResearchTask]:
+    if not watchlist_matches or not _capital_iq_configured(settings):
+        return []
+
+    refresh_days = max(settings.watchlist.valuation_refresh_days, 1)
+    watchlist = _watchlist_lookup(settings)
+    tasks: list[AnalysisResearchTask] = []
+    for ticker in watchlist_matches:
+        if not _watchlist_refresh_is_due(pipeline_status.watchlist_valuation_checks.get(ticker), date_str, refresh_days):
+            continue
+        name, notes = watchlist.get(ticker, ("", ""))
+        label = name or ticker
+        goal = f"Use S&P Capital IQ to refresh price, scale, and valuation context for {ticker}."
+        if notes:
+            goal += f" Keep this angle in mind: {notes}"
+        tasks.append(
+            AnalysisResearchTask(
+                task_type="sp_data_research",
+                topic=f"{label} valuation refresh",
+                goal=goal,
+                priority="high",
+            )
+        )
+    return tasks
+
+
+def _merge_research_tasks(
+    primary_tasks: list[AnalysisResearchTask],
+    secondary_tasks: list[AnalysisResearchTask],
+    *,
+    limit: int = 3,
+) -> list[AnalysisResearchTask]:
+    merged: list[AnalysisResearchTask] = []
+    seen: set[tuple[str, str, str]] = set()
+    for task in primary_tasks + secondary_tasks:
+        key = (task.task_type, task.topic.strip().lower(), task.goal.strip().lower())
+        if key in seen:
+            continue
+        merged.append(task)
+        seen.add(key)
+        if len(merged) >= limit:
+            break
+    return merged
+
+
 def _should_run_task(settings: AppSettings, task: AnalysisResearchTask) -> bool:
     if task.task_type == "sp_data_research":
         return _capital_iq_configured(settings)
@@ -251,6 +387,21 @@ def _should_run_task(settings: AppSettings, task: AnalysisResearchTask) -> bool:
 def _slugify(value: str) -> str:
     slug = re.sub(r"[^a-z0-9]+", "-", value.lower()).strip("-")
     return slug[:60] or "task"
+
+
+def _materialize_subanalysis_charts(markdown: str, date_str: str, video_id: str, task_index: int, slug: str) -> str:
+    if "```chart-spec" not in markdown:
+        return markdown
+    try:
+        return materialize_chart_markdown(
+            markdown,
+            report_charts_dir(date_str),
+            report_asset_url(date_str, "assets", "charts"),
+            f"{video_id}-{task_index:02d}-{slug}",
+        )
+    except Exception:
+        logger.exception("Chart materialization failed for %s task %s", video_id, task_index)
+        return markdown
 
 
 async def _run_sp_data_subtask(
@@ -272,12 +423,18 @@ async def _run_sp_data_subtask(
         goal=task.goal,
         priority=task.priority,
         transcript=video.transcript[:12000],
-        settings_path=str(SETTINGS_PATH),
+        settings_path=effective_settings_path(),
     )
     slug = _slugify(task.topic)
     workspace = video_subtasks_dir(date_str, video.video_id) / f"{task_index:02d}-{slug}"
-    runner = build_runner(settings.agent.backend, workspace, settings.agent.research_timeout_seconds)
+    runner = build_runner(
+        settings.agent.backend,
+        workspace,
+        settings.agent.research_timeout_seconds,
+        model=_capital_iq_agent_model(settings),
+    )
     markdown = (await runner.run(prompt, _sp_research_skills())).strip()
+    markdown = _materialize_subanalysis_charts(markdown, date_str, video.video_id, task_index, slug)
     result_path = workspace / "analysis.md"
     write_text(result_path, markdown.rstrip() + "\n" if markdown else "")
     return SubAnalysis(
@@ -309,6 +466,8 @@ def analyze_videos(settings: AppSettings, videos: list[SourceVideo], date_str: s
 
     analyses: list[VideoAnalysis] = []
     all_claims: list[Claim] = []
+    pipeline_status = load_pipeline_status()
+    pipeline_status_dirty = False
 
     for video in videos:
         if not _has_analysis_material(video):
@@ -316,18 +475,42 @@ def analyze_videos(settings: AppSettings, videos: list[SourceVideo], date_str: s
         try:
             payload = asyncio.run(_agent_analysis(settings, video, date_str))
         except Exception:
+            logger.exception("Agent analysis failed for %s; using fallback payload", video.video_id)
             payload = _fallback_analysis_payload(video)
         if not payload:
+            logger.warning("Agent analysis returned empty payload for %s; using fallback payload", video.video_id)
             payload = _fallback_analysis_payload(video)
-        research_tasks = _planned_research_tasks(payload)
+        watchlist_matches = _watchlist_matches(settings, video, payload)
+        research_tasks = _merge_research_tasks(
+            _auto_watchlist_research_tasks(settings, watchlist_matches, pipeline_status, date_str),
+            _planned_research_tasks(payload),
+        )
         sub_analyses: list[SubAnalysis] = []
+        completed_watchlist_checks: set[str] = set()
         for index, task in enumerate(research_tasks, start=1):
             if not _should_run_task(settings, task):
                 continue
-            sub_analyses.append(asyncio.run(_run_research_subtask(settings, video, date_str, payload, task, index)))
+            try:
+                sub_analysis = asyncio.run(_run_research_subtask(settings, video, date_str, payload, task, index))
+            except Exception:
+                logger.exception(
+                    "Research subtask failed for %s task %s (%s); continuing without enrichment",
+                    video.video_id,
+                    index,
+                    task.topic,
+                )
+                continue
+            sub_analyses.append(sub_analysis)
+            if sub_analysis.markdown.strip():
+                for ticker in watchlist_matches:
+                    if _task_targets_watchlist_ticker(task, ticker):
+                        completed_watchlist_checks.add(ticker)
         sp_enrichment = "\n\n".join(
             analysis.markdown for analysis in sub_analyses if analysis.task_type == "sp_data_research" and analysis.markdown
         ).strip()
+        for ticker in completed_watchlist_checks:
+            pipeline_status.watchlist_valuation_checks[ticker] = date_str
+            pipeline_status_dirty = True
         opinions = [
             Opinion(
                 quote=item["quote"],
@@ -360,6 +543,7 @@ def analyze_videos(settings: AppSettings, videos: list[SourceVideo], date_str: s
             summary=payload.get("summary", ""),
             topic_tags=payload.get("topic_tags", []),
             tickers=payload.get("tickers", []),
+            watchlist_matches=watchlist_matches,
             research_tasks=research_tasks,
             sub_analyses=sub_analyses,
             sp_enrichment=sp_enrichment,
@@ -368,6 +552,8 @@ def analyze_videos(settings: AppSettings, videos: list[SourceVideo], date_str: s
         )
         analyses.append(analysis)
 
+    if pipeline_status_dirty:
+        save_pipeline_status(pipeline_status)
     write_json(day_dir / "analysis.json", [item.model_dump(mode="json") for item in analyses])
     manifest = DailyClaimsManifest(date=date_str, claims=all_claims)
     write_json(claims_manifest_path(date_str), manifest.model_dump(mode="json"))

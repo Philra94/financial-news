@@ -42,3 +42,16 @@ def test_claude_runner_defaults_to_bypass_permissions() -> None:
 
     assert runner.default_command == ["claude", "--print", "--dangerously-skip-permissions"]
     assert runner.pass_prompt_via_stdin is True
+
+
+def test_claude_runner_appends_model_flag(monkeypatch) -> None:
+    monkeypatch.setattr(runner_module.shutil, "which", lambda binary: f"/usr/bin/{binary}")
+    runner = ClaudeCodeRunner(workspace=Path("/tmp/workspace"), timeout_seconds=5, model="opus")
+
+    assert runner._resolve_command() == [
+        "claude",
+        "--print",
+        "--dangerously-skip-permissions",
+        "--model",
+        "opus",
+    ]

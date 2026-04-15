@@ -85,6 +85,23 @@ Start broad, then narrow quickly:
 
 Before improvising, read [navigation-notes.md](navigation-notes.md).
 
+## Index Snapshot Workflow
+
+When the task is a top-of-briefing market snapshot:
+
+- stay inside Capital IQ for the entire run
+- prefer the top-header global search before broader browsing
+- try canonical index symbols or names first:
+  - `S&P 500` -> `SPX`
+  - `Nasdaq 100` -> `NDX`
+  - `DAX` -> `DAX`
+  - `Euro Stoxx 50` -> `SX5E`
+  - `Nikkei 225` -> `NKY`
+- prefer a clean quote or market-data style page for the index itself
+- capture the latest visible daily move, level, currency, and session label from Capital IQ only
+- if Capital IQ does not expose a clean result after reasonable effort, mark that index unavailable instead of supplementing with public sites or APIs
+- do not mention Yahoo Finance, Investing.com, Google Finance, Reuters, Bloomberg, or similar sources in the final result
+
 ## Output Guidance
 
 Return concise, source-aware notes.
@@ -93,7 +110,7 @@ Return concise, source-aware notes.
 - state where in Capital IQ the information was found
 - include dates and labels exactly when they matter
 - if a page is ambiguous or gated, say so
-- if Capital IQ does not provide a clear answer, stop and supplement with other sources instead of overstating confidence
+- if Capital IQ does not provide a clear answer, mark the item unavailable and say so plainly instead of supplementing with other sources
 
 ## Safety And Restraint
 
@@ -106,6 +123,8 @@ Return concise, source-aware notes.
 
 After each run, briefly review whether this skill or the navigation notes can be improved for the next agent.
 
+The agent may update the documented Capital IQ paths in this skill and in `navigation-notes.md` when it has actually verified a faster or more reliable route during the run.
+
 If you discovered:
 
 - a faster route
@@ -114,7 +133,7 @@ If you discovered:
 - a better search pattern
 - a login quirk
 
-then update [navigation-notes.md](navigation-notes.md), and refine this `SKILL.md` if the improvement is general and clearly better.
+then update [navigation-notes.md](navigation-notes.md), and refine this `SKILL.md` if the improvement is general, verified, and clearly better for the next run.
 
 If you are unsure what to improve, or do not have enough confidence, it is fine to skip this step.
 

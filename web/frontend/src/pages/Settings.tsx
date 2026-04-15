@@ -12,6 +12,8 @@ const EMPTY_SETTINGS: AppSettings = {
   },
   agent: {
     backend: 'codex',
+    model: '',
+    capital_iq_model: '',
     max_concurrent_research: 2,
     research_timeout_seconds: 600,
   },
@@ -22,6 +24,10 @@ const EMPTY_SETTINGS: AppSettings = {
   capital_iq: {
     username: '',
     password: '',
+  },
+  watchlist: {
+    stocks: [],
+    valuation_refresh_days: 7,
   },
   transcription: {
     backend: 'captions_then_local',
@@ -52,6 +58,7 @@ const EMPTY_SETTINGS: AppSettings = {
 export function SettingsPage() {
   const [settings, setSettings] = useState<AppSettings>(EMPTY_SETTINGS)
   const [channelDraft, setChannelDraft] = useState({ url: '', focus: '' })
+  const [watchlistDraft, setWatchlistDraft] = useState({ ticker: '', name: '', notes: '' })
   const [note, setNote] = useState<string | null>(null)
   const [channelCheck, setChannelCheck] = useState<ResolvedChannel | null>(null)
   const [channelCheckError, setChannelCheckError] = useState<string | null>(null)
@@ -117,6 +124,35 @@ export function SettingsPage() {
     updateField('youtube', {
       ...settings.youtube,
       channels: settings.youtube.channels.filter((channel) => channel.id !== channelId),
+    })
+  }
+
+  function addWatchlistStock() {
+    const ticker = watchlistDraft.ticker.trim().toUpperCase()
+    if (!ticker) {
+      setNote('Add a ticker before saving a watchlist name.')
+      return
+    }
+    if (settings.watchlist.stocks.some((stock) => stock.ticker.toUpperCase() === ticker)) {
+      setNote(`${ticker} is already on your watchlist.`)
+      return
+    }
+    updateField('watchlist', {
+      ...settings.watchlist,
+      stocks: settings.watchlist.stocks.concat({
+        ticker,
+        name: watchlistDraft.name.trim(),
+        notes: watchlistDraft.notes.trim(),
+      }),
+    })
+    setWatchlistDraft({ ticker: '', name: '', notes: '' })
+    setNote(null)
+  }
+
+  function removeWatchlistStock(ticker: string) {
+    updateField('watchlist', {
+      ...settings.watchlist,
+      stocks: settings.watchlist.stocks.filter((stock) => stock.ticker !== ticker),
     })
   }
 
@@ -206,6 +242,32 @@ export function SettingsPage() {
                 <option value="copilot">GitHub Copilot</option>
               </select>
             </label>
+          </div>
+          <div className="field-row">
+            <label className="field">
+              <span>Main Claude model</span>
+              <input
+                placeholder="opus"
+                value={settings.agent.model}
+                onChange={(event) =>
+                  updateField('agent', { ...settings.agent, model: event.target.value })
+                }
+              />
+            </label>
+            <label className="field">
+              <span>Capital IQ Claude model</span>
+              <input
+                placeholder="haiku"
+                value={settings.agent.capital_iq_model}
+                onChange={(event) =>
+                  updateField('agent', { ...settings.agent, capital_iq_model: event.target.value })
+                }
+              />
+            </label>
+          </div>
+          <div className="form-note">
+            These model overrides are used only when the backend is `Claude Code`. Leave the Capital IQ field blank to
+            reuse the main Claude model.
           </div>
         </section>
 
@@ -558,6 +620,89 @@ export function SettingsPage() {
           <div className="form-note">
             Used by the Capital IQ browser skill for authenticated research. Stored locally in `config/settings.json`.
           </div>
+        </section>
+
+        <section className="settings-section">
+          <div className="settings-section__header">
+            <div className="section-label">Research</div>
+            <h2 className="settings-section__title">Stock watchlist</h2>
+          </div>
+          <div className="settings-intro">
+            Add stocks you want the briefing agent to prioritize. When those names show up in coverage, the
+            briefing will give them extra weight and the Capital IQ sub-agent will refresh valuation context on a
+            recurring cadence.
+          </div>
+          <div className="field-row">
+            <label className="field">
+              <span>Ticker</span>
+              <input
+                placeholder="NVDA"
+                value={watchlistDraft.ticker}
+                onChange={(event) =>
+                  setWatchlistDraft((current) => ({ ...current, ticker: event.target.value.toUpperCase() }))
+                }
+              />
+            </label>
+            <label className="field">
+              <span>Company name</span>
+              <input
+                placeholder="NVIDIA"
+                value={watchlistDraft.name}
+                onChange={(event) => setWatchlistDraft((current) => ({ ...current, name: event.target.value }))}
+              />
+            </label>
+          </div>
+          <label className="field">
+            <span>Why it matters</span>
+            <input
+              placeholder="AI capex leader, data-center demand, valuation risk"
+              value={watchlistDraft.notes}
+              onChange={(event) => setWatchlistDraft((current) => ({ ...current, notes: event.target.value }))}
+            />
+          </label>
+          <div className="field-row">
+            <label className="field">
+              <span>Refresh valuation every N days</span>
+              <input
+                min={1}
+                type="number"
+                value={settings.watchlist.valuation_refresh_days}
+                onChange={(event) =>
+                  updateField('watchlist', {
+                    ...settings.watchlist,
+                    valuation_refresh_days: Number(event.target.value || 1),
+                  })
+                }
+              />
+            </label>
+          </div>
+          <div className="settings-actions">
+            <button className="editorial-button editorial-button--boxed" onClick={addWatchlistStock} type="button">
+              Add stock
+            </button>
+          </div>
+          {settings.watchlist.stocks.length === 0 ? (
+            <p className="empty-state">No watchlist stocks configured yet.</p>
+          ) : (
+            <ul className="channel-list">
+              {settings.watchlist.stocks.map((stock) => (
+                <li className="channel-list__item" key={stock.ticker}>
+                  <div>
+                    <strong>{stock.ticker}</strong>
+                    {stock.name ? ` · ${stock.name}` : null}
+                    {stock.notes ? <div className="channel-list__meta">{stock.notes}</div> : null}
+                  </div>
+                  <button
+                    className="claim-inline__action"
+                    onClick={() => removeWatchlistStock(stock.ticker)}
+                    type="button"
+                  >
+                    remove
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
         </section>
 
         <section className="settings-section">

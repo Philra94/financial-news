@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 AgentBackend = Literal["claude-code", "codex", "cursor", "copilot"]
 ClaimStatus = Literal["pending", "queued", "researching", "completed", "failed"]
 PipelineJobStatus = Literal["queued", "running", "completed", "failed"]
+BriefingQuality = Literal["full", "fallback"]
 TranscriptionBackend = Literal["captions_only", "captions_then_local", "local_only"]
 TranscriptSource = Literal["captions", "faster_whisper", "none"]
 TranscriptStatus = Literal["pending", "completed", "failed", "skipped"]
@@ -33,6 +34,8 @@ class YouTubeSettings(BaseModel):
 
 class AgentSettings(BaseModel):
     backend: AgentBackend = "codex"
+    model: str = ""
+    capital_iq_model: str = ""
     max_concurrent_research: int = 2
     research_timeout_seconds: int = 600
 
@@ -45,6 +48,17 @@ class GoogleSearchSettings(BaseModel):
 class CapitalIQSettings(BaseModel):
     username: str = ""
     password: str = ""
+
+
+class WatchlistStock(BaseModel):
+    ticker: str
+    name: str = ""
+    notes: str = ""
+
+
+class WatchlistSettings(BaseModel):
+    stocks: list[WatchlistStock] = Field(default_factory=list)
+    valuation_refresh_days: int = 7
 
 
 class TranscriptionSettings(BaseModel):
@@ -79,6 +93,7 @@ class AppSettings(BaseModel):
     agent: AgentSettings = Field(default_factory=AgentSettings)
     google_search: GoogleSearchSettings = Field(default_factory=GoogleSearchSettings)
     capital_iq: CapitalIQSettings = Field(default_factory=CapitalIQSettings)
+    watchlist: WatchlistSettings = Field(default_factory=WatchlistSettings)
     transcription: TranscriptionSettings = Field(default_factory=TranscriptionSettings)
     schedule: ScheduleSettings = Field(default_factory=ScheduleSettings)
     site: SiteSettings = Field(default_factory=SiteSettings)
@@ -152,11 +167,32 @@ class VideoAnalysis(BaseModel):
     summary: str
     topic_tags: list[str] = Field(default_factory=list)
     tickers: list[str] = Field(default_factory=list)
+    watchlist_matches: list[str] = Field(default_factory=list)
     research_tasks: list[AnalysisResearchTask] = Field(default_factory=list)
     sub_analyses: list[SubAnalysis] = Field(default_factory=list)
     sp_enrichment: str = ""
     opinions: list[Opinion] = Field(default_factory=list)
     claims: list[Claim] = Field(default_factory=list)
+
+
+class MarketSnapshotIndex(BaseModel):
+    label: str
+    symbol: str = ""
+    daily_change_percent: float | None = None
+    closing_level: float | None = None
+    currency: str = ""
+    as_of: str = ""
+    session_label: str = ""
+    note: str = ""
+
+
+class MarketSnapshot(BaseModel):
+    date: str
+    summary: str = ""
+    indices: list[MarketSnapshotIndex] = Field(default_factory=list)
+    markdown: str = ""
+    chart_path: str | None = None
+    chart_url: str | None = None
 
 
 class DailyClaimsManifest(BaseModel):
@@ -211,6 +247,8 @@ class BriefingIndexItem(BaseModel):
     title: str
     summary: str
     claim_count: int = 0
+    source_count: int = 0
+    quality: BriefingQuality = "full"
     updated_at: datetime
 
 
@@ -220,3 +258,4 @@ class PipelineStatus(BaseModel):
     last_error: str | None = None
     worker_running: bool = False
     active_pipeline_job_id: str | None = None
+    watchlist_valuation_checks: dict[str, str] = Field(default_factory=dict)

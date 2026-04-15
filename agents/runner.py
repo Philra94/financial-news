@@ -12,9 +12,10 @@ from agents.storage import write_text
 
 
 class AgentRunner(ABC):
-    def __init__(self, workspace: Path, timeout_seconds: int) -> None:
+    def __init__(self, workspace: Path, timeout_seconds: int, model: str | None = None) -> None:
         self.workspace = workspace
         self.timeout_seconds = timeout_seconds
+        self.model = (model or "").strip()
         self.pass_prompt_via_stdin = False
 
     @abstractmethod
@@ -86,9 +87,15 @@ class ClaudeCodeRunner(SubprocessRunner):
     env_var_name = "FINNEWS_CLAUDE_CODE_CMD"
     default_command = ["claude", "--print", "--dangerously-skip-permissions"]
 
-    def __init__(self, workspace: Path, timeout_seconds: int) -> None:
-        super().__init__(workspace, timeout_seconds)
+    def __init__(self, workspace: Path, timeout_seconds: int, model: str | None = None) -> None:
+        super().__init__(workspace, timeout_seconds, model)
         self.pass_prompt_via_stdin = True
+
+    def _resolve_command(self) -> list[str]:
+        command = super()._resolve_command()
+        if self.model:
+            return [*command, "--model", self.model]
+        return command
 
 
 class CodexRunner(SubprocessRunner):
@@ -106,11 +113,11 @@ class CopilotRunner(SubprocessRunner):
     default_command = ["gh", "copilot", "suggest"]
 
 
-def build_runner(backend: AgentBackend, workspace: Path, timeout_seconds: int) -> AgentRunner:
+def build_runner(backend: AgentBackend, workspace: Path, timeout_seconds: int, model: str | None = None) -> AgentRunner:
     if backend == "claude-code":
-        return ClaudeCodeRunner(workspace, timeout_seconds)
+        return ClaudeCodeRunner(workspace, timeout_seconds, model=model)
     if backend == "cursor":
-        return CursorRunner(workspace, timeout_seconds)
+        return CursorRunner(workspace, timeout_seconds, model=model)
     if backend == "copilot":
-        return CopilotRunner(workspace, timeout_seconds)
-    return CodexRunner(workspace, timeout_seconds)
+        return CopilotRunner(workspace, timeout_seconds, model=model)
+    return CodexRunner(workspace, timeout_seconds, model=model)

@@ -7,7 +7,9 @@
     "lookback_hours": 24
   },
   "agent": {
-    "backend": "codex",
+    "backend": "claude-code",
+    "model": "opus",
+    "capital_iq_model": "haiku",
     "max_concurrent_research": 2,
     "research_timeout_seconds": 600
   },
@@ -18,6 +20,10 @@
   "capital_iq": {
     "username": "",
     "password": ""
+  },
+  "watchlist": {
+    "stocks": [],
+    "valuation_refresh_days": 7
   },
   "transcription": {
     "backend": "captions_then_local",
