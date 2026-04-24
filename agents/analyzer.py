@@ -11,6 +11,7 @@ from typing import Any
 from agents.charts import materialize_chart_markdown
 from agents.config import load_pipeline_status, save_pipeline_status
 from agents.config import effective_settings_path
+from agents.model_selection import analysis_agent_model, capital_iq_agent_model
 from agents.models import (
     AnalysisResearchTask,
     AppSettings,
@@ -29,16 +30,6 @@ from agents.storage import read_json, write_json, write_text
 from agents.utils import COMMON_NON_TICKER_TOKENS, claim_id_from_text, extract_tickers, sentence_chunks
 
 logger = logging.getLogger(__name__)
-
-
-def _default_agent_model(settings: AppSettings) -> str | None:
-    model = settings.agent.model.strip()
-    return model or None
-
-
-def _capital_iq_agent_model(settings: AppSettings) -> str | None:
-    model = settings.agent.capital_iq_model.strip() or settings.agent.model.strip()
-    return model or None
 
 
 def _parse_json_block(text: str) -> dict[str, Any]:
@@ -225,7 +216,7 @@ async def _agent_analysis(
         settings.agent.backend,
         workspace,
         settings.agent.research_timeout_seconds,
-        model=_default_agent_model(settings),
+        model=analysis_agent_model(settings),
     )
     text = await runner.run(prompt, [])
     try:
@@ -431,7 +422,7 @@ async def _run_sp_data_subtask(
         settings.agent.backend,
         workspace,
         settings.agent.research_timeout_seconds,
-        model=_capital_iq_agent_model(settings),
+        model=capital_iq_agent_model(settings),
     )
     markdown = (await runner.run(prompt, _sp_research_skills())).strip()
     markdown = _materialize_subanalysis_charts(markdown, date_str, video.video_id, task_index, slug)

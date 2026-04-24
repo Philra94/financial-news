@@ -36,6 +36,10 @@ class AgentSettings(BaseModel):
     backend: AgentBackend = "codex"
     model: str = ""
     capital_iq_model: str = ""
+    analysis_model: str = ""
+    research_model: str = ""
+    editorial_model: str = ""
+    translation_model: str = ""
     max_concurrent_research: int = 2
     research_timeout_seconds: int = 600
 

@@ -4,6 +4,7 @@ import asyncio
 from pathlib import Path
 
 from agents.google_search import format_search_context, google_search_is_configured, search_google
+from agents.model_selection import research_agent_model
 from agents.models import AppSettings, DailyClaimsManifest, ResearchJob, ResearchResult
 from agents.paths import (
     SKILLS_DIR,
@@ -17,11 +18,6 @@ from agents.prompts_loader import render_prompt
 from agents.runner import build_runner
 from agents.storage import model_from_json, read_json, write_json, write_text
 from agents.utils import unwrap_markdown_response, utc_now
-
-
-def _default_agent_model(settings: AppSettings) -> str | None:
-    model = settings.agent.model.strip()
-    return model or None
 
 
 def load_claim_manifest(date_str: str) -> DailyClaimsManifest:
@@ -130,7 +126,7 @@ async def process_job(settings: AppSettings, job: ResearchJob) -> ResearchResult
         job.backend,
         workspace,
         settings.agent.research_timeout_seconds,
-        model=_default_agent_model(settings),
+        model=research_agent_model(settings),
     )
     output = unwrap_markdown_response(await runner.run(prompt, _skills()))
     if not output:

@@ -8,6 +8,7 @@ import re
 
 from agents.charts import ChartPoint, ChartSpec, render_chart_svg
 from agents.config import effective_settings_path
+from agents.model_selection import capital_iq_agent_model
 from agents.models import AppSettings, MarketSnapshot, MarketSnapshotIndex
 from agents.paths import (
     SKILLS_DIR,
@@ -33,13 +34,6 @@ EXTERNAL_SOURCE_PATTERN = re.compile(
     r"\b(yahoo|investing(?:\.com)?|marketwatch|google finance|tradingview|reuters|bloomberg|stooq)\b",
     re.IGNORECASE,
 )
-
-
-def _capital_iq_agent_model(settings: AppSettings) -> str | None:
-    model = settings.agent.capital_iq_model.strip() or settings.agent.model.strip()
-    return model or None
-
-
 def _snapshot_skills() -> list[Path]:
     return [
         SKILLS_DIR / "browser" / "SKILL.md",
@@ -189,7 +183,7 @@ def build_market_snapshot(settings: AppSettings, date_str: str) -> MarketSnapsho
         settings.agent.backend,
         workspace,
         settings.agent.research_timeout_seconds,
-        model=_capital_iq_agent_model(settings),
+        model=capital_iq_agent_model(settings),
     )
     text = ""
     try:

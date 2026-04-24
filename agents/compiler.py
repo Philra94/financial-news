@@ -8,6 +8,7 @@ from collections import defaultdict
 from datetime import UTC, datetime
 from typing import Any
 
+from agents.model_selection import editorial_agent_model, translation_agent_model
 from agents.models import AppSettings, BriefingIndexItem, BriefingQuality, MarketSnapshot, VideoAnalysis
 from agents.paths import (
     briefing_english_path,
@@ -34,13 +35,6 @@ AGENT_CHATTER_PATTERNS = [
     re.compile(r"\bich (?:kann|werde)(?: jetzt)? (?:kompilieren|schreiben|uebersetzen|übersetzen)\b", re.IGNORECASE),
     re.compile(r"\bhier ist die (?:analyse|uebersetzung|übersetzung|zusammenfassung)\b", re.IGNORECASE),
 ]
-
-
-def _default_agent_model(settings: AppSettings) -> str | None:
-    model = settings.agent.model.strip()
-    return model or None
-
-
 def _section_for_analysis(analysis: VideoAnalysis) -> str:
     if analysis.watchlist_matches:
         return "WATCHLIST"
@@ -319,7 +313,7 @@ def _generate_briefing(settings: AppSettings, payload: dict[str, Any], date_str:
         settings.agent.backend,
         workspace,
         settings.agent.research_timeout_seconds,
-        model=_default_agent_model(settings),
+        model=editorial_agent_model(settings),
     )
     raw_text = asyncio.run(runner.run(prompt, []))
     return _clean_public_markdown(raw_text, artifact_name="briefing.en.raw.md", date_str=date_str)
@@ -338,7 +332,7 @@ def _review_briefing(settings: AppSettings, payload: dict[str, Any], markdown: s
         settings.agent.backend,
         workspace,
         settings.agent.research_timeout_seconds,
-        model=_default_agent_model(settings),
+        model=editorial_agent_model(settings),
     )
     review_text = asyncio.run(runner.run(prompt, []))
     try:
@@ -377,7 +371,7 @@ def _revise_briefing(
         settings.agent.backend,
         workspace,
         settings.agent.research_timeout_seconds,
-        model=_default_agent_model(settings),
+        model=editorial_agent_model(settings),
     )
     revised = asyncio.run(runner.run(revision_prompt, []))
     return _clean_public_markdown(revised, artifact_name="briefing.revised.raw.md", date_str=date_str)
@@ -439,7 +433,7 @@ def _translate_briefing_to_german(settings: AppSettings, markdown: str, date_str
         settings.agent.backend,
         workspace,
         settings.agent.research_timeout_seconds,
-        model=_default_agent_model(settings),
+        model=translation_agent_model(settings),
     )
     translated = asyncio.run(runner.run(prompt, []))
     return _clean_public_markdown(translated, artifact_name="briefing.de.raw.md", date_str=date_str)

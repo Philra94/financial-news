@@ -11,7 +11,7 @@ def test_load_settings_deep_merges_local_override(monkeypatch, tmp_path) -> None
         json.dumps(
             {
                 "capital_iq": {"username": "user@example.com", "password": "secret"},
-                "agent": {"backend": "codex", "research_timeout_seconds": 600},
+                "agent": {"backend": "codex", "research_timeout_seconds": 600, "analysis_model": "sonnet"},
             }
         ),
         encoding="utf-8",
@@ -19,7 +19,7 @@ def test_load_settings_deep_merges_local_override(monkeypatch, tmp_path) -> None
     settings_local_path.write_text(
         json.dumps(
             {
-                "agent": {"backend": "claude-code"},
+                "agent": {"backend": "claude-code", "research_model": "haiku"},
             }
         ),
         encoding="utf-8",
@@ -33,5 +33,7 @@ def test_load_settings_deep_merges_local_override(monkeypatch, tmp_path) -> None
 
     assert settings.agent.backend == "claude-code"
     assert settings.agent.research_timeout_seconds == 600
+    assert settings.agent.analysis_model == "sonnet"
+    assert settings.agent.research_model == "haiku"
     assert settings.capital_iq.username == "user@example.com"
     assert settings.capital_iq.password == "secret"

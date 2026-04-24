@@ -10,6 +10,10 @@
     "backend": "claude-code",
     "model": "opus",
     "capital_iq_model": "haiku",
+    "analysis_model": "sonnet",
+    "research_model": "haiku",
+    "editorial_model": "opus",
+    "translation_model": "haiku",
     "max_concurrent_research": 2,
     "research_timeout_seconds": 600
   },

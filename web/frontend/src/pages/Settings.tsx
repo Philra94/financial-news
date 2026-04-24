@@ -14,6 +14,10 @@ const EMPTY_SETTINGS: AppSettings = {
     backend: 'codex',
     model: '',
     capital_iq_model: '',
+    analysis_model: '',
+    research_model: '',
+    editorial_model: '',
+    translation_model: '',
     max_concurrent_research: 2,
     research_timeout_seconds: 600,
   },
@@ -245,7 +249,7 @@ export function SettingsPage() {
           </div>
           <div className="field-row">
             <label className="field">
-              <span>Main Claude model</span>
+              <span>Global Claude fallback</span>
               <input
                 placeholder="opus"
                 value={settings.agent.model}
@@ -255,7 +259,7 @@ export function SettingsPage() {
               />
             </label>
             <label className="field">
-              <span>Capital IQ Claude model</span>
+              <span>Legacy Capital IQ fallback</span>
               <input
                 placeholder="haiku"
                 value={settings.agent.capital_iq_model}
@@ -265,9 +269,54 @@ export function SettingsPage() {
               />
             </label>
           </div>
+          <div className="field-row">
+            <label className="field">
+              <span>Analysis Claude model</span>
+              <input
+                placeholder="sonnet"
+                value={settings.agent.analysis_model}
+                onChange={(event) =>
+                  updateField('agent', { ...settings.agent, analysis_model: event.target.value })
+                }
+              />
+            </label>
+            <label className="field">
+              <span>Research Claude model</span>
+              <input
+                placeholder="haiku"
+                value={settings.agent.research_model}
+                onChange={(event) =>
+                  updateField('agent', { ...settings.agent, research_model: event.target.value })
+                }
+              />
+            </label>
+          </div>
+          <div className="field-row">
+            <label className="field">
+              <span>Editorial Claude model</span>
+              <input
+                placeholder="opus"
+                value={settings.agent.editorial_model}
+                onChange={(event) =>
+                  updateField('agent', { ...settings.agent, editorial_model: event.target.value })
+                }
+              />
+            </label>
+            <label className="field">
+              <span>Translation Claude model</span>
+              <input
+                placeholder="haiku"
+                value={settings.agent.translation_model}
+                onChange={(event) =>
+                  updateField('agent', { ...settings.agent, translation_model: event.target.value })
+                }
+              />
+            </label>
+          </div>
           <div className="form-note">
-            These model overrides are used only when the backend is `Claude Code`. Leave the Capital IQ field blank to
-            reuse the main Claude model.
+            These model overrides are used only when the backend is `Claude Code`. Stage-specific fields fall back to
+            the global model, and Capital IQ-style research also honors the legacy Capital IQ fallback when the
+            research field is blank.
           </div>
         </section>
 

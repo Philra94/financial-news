@@ -129,8 +129,12 @@ def test_build_market_snapshot_falls_back_when_snapshot_uses_external_sources(tm
 
 def test_build_market_snapshot_persists_raw_agent_output(tmp_path: Path, monkeypatch) -> None:
     settings = AppSettings()
+    settings.agent.model = "opus"
+    settings.agent.capital_iq_model = "legacy-haiku"
+    settings.agent.research_model = "haiku"
     settings.capital_iq.username = "user@example.com"
     settings.capital_iq.password = "secret"
+    captured: dict[str, str | None] = {}
 
     raw_response = """
     {
@@ -158,10 +162,11 @@ def test_build_market_snapshot_persists_raw_agent_output(tmp_path: Path, monkeyp
     monkeypatch.setattr("agents.market_snapshot.market_snapshot_path", lambda date_str: tmp_path / date_str / "market-snapshot.json")
     monkeypatch.setattr(
         "agents.market_snapshot.build_runner",
-        lambda backend, workspace, timeout, model=None: FakeRunner(),
+        lambda backend, workspace, timeout, model=None: captured.update({"backend": backend, "model": model}) or FakeRunner(),
     )
     monkeypatch.setattr("agents.market_snapshot.effective_settings_path", lambda: str(tmp_path / "config" / "settings.local.json"))
 
     build_market_snapshot(settings, "2026-04-11")
 
     assert (tmp_path / "2026-04-11" / "market-snapshot.raw.txt").read_text(encoding="utf-8") == raw_response
+    assert captured == {"backend": "codex", "model": "haiku"}

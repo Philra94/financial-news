@@ -109,6 +109,10 @@ export type AppSettings = {
     backend: string
     model: string
     capital_iq_model: string
+    analysis_model: string
+    research_model: string
+    editorial_model: string
+    translation_model: string
     max_concurrent_research: number
     research_timeout_seconds: number
   }
