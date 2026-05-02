@@ -6,7 +6,7 @@ import logging
 from pathlib import Path
 import re
 
-from agents.charts import ChartPoint, ChartSpec, render_chart_svg
+from agents.charts import BarComparisonSpec, ChartPoint, render_chart_svg
 from agents.config import effective_settings_path
 from agents.model_selection import capital_iq_agent_model
 from agents.models import AppSettings, MarketSnapshot, MarketSnapshotIndex
@@ -101,9 +101,8 @@ def _snapshot_chart(snapshot: MarketSnapshot, date_str: str) -> tuple[str | None
         return None, None
     chart_dir = report_charts_dir(date_str)
     chart_path = chart_dir / "market-snapshot.svg"
-    spec = ChartSpec(
+    spec = BarComparisonSpec(
         title="Global equity indices split on the latest session",
-        type="bar",
         label_suffix="%",
         caption="Source: S&P Capital IQ. Daily percentage move for the latest visible session.",
         highlight="S&P 500",

@@ -1,7 +1,7 @@
 from pathlib import Path
 
 import agents.runner as runner_module
-from agents.runner import AgentRunner, ClaudeCodeRunner
+from agents.runner import AgentRunner, ClaudeCodeRunner, KimiRunner, build_runner
 
 
 class DummyRunner(AgentRunner):
@@ -55,3 +55,30 @@ def test_claude_runner_appends_model_flag(monkeypatch) -> None:
         "--model",
         "opus",
     ]
+
+
+def test_kimi_runner_defaults_pipe_stdin() -> None:
+    runner = KimiRunner(workspace=Path("/tmp/workspace"), timeout_seconds=5)
+
+    assert runner.default_command == ["kimi-cli", "--print"]
+    assert runner.pass_prompt_via_stdin is True
+
+
+def test_kimi_runner_appends_model_flag(monkeypatch) -> None:
+    monkeypatch.setattr(runner_module.shutil, "which", lambda binary: f"/usr/bin/{binary}")
+    runner = KimiRunner(workspace=Path("/tmp/workspace"), timeout_seconds=5, model="kimi-k2-0905-preview")
+
+    assert runner._resolve_command() == ["kimi-cli", "--print", "--model", "kimi-k2-0905-preview"]
+
+
+def test_kimi_runner_command_override(monkeypatch) -> None:
+    monkeypatch.setenv("FINNEWS_KIMI_CMD", "/opt/kimi --print --json")
+    runner = KimiRunner(workspace=Path("/tmp/workspace"), timeout_seconds=5)
+
+    assert runner._resolve_command() == ["/opt/kimi", "--print", "--json"]
+
+
+def test_build_runner_dispatches_kimi() -> None:
+    runner = build_runner("kimi", Path("/tmp/workspace"), 10)
+
+    assert isinstance(runner, KimiRunner)

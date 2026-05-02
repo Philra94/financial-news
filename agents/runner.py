@@ -98,6 +98,21 @@ class ClaudeCodeRunner(SubprocessRunner):
         return command
 
 
+class KimiRunner(SubprocessRunner):
+    env_var_name = "FINNEWS_KIMI_CMD"
+    default_command = ["kimi-cli", "--print"]
+
+    def __init__(self, workspace: Path, timeout_seconds: int, model: str | None = None) -> None:
+        super().__init__(workspace, timeout_seconds, model)
+        self.pass_prompt_via_stdin = True
+
+    def _resolve_command(self) -> list[str]:
+        command = super()._resolve_command()
+        if self.model:
+            return [*command, "--model", self.model]
+        return command
+
+
 class CodexRunner(SubprocessRunner):
     env_var_name = "FINNEWS_CODEX_CMD"
     default_command = ["codex", "exec", "--skip-git-repo-check"]
@@ -120,4 +135,6 @@ def build_runner(backend: AgentBackend, workspace: Path, timeout_seconds: int, m
         return CursorRunner(workspace, timeout_seconds, model=model)
     if backend == "copilot":
         return CopilotRunner(workspace, timeout_seconds, model=model)
+    if backend == "kimi":
+        return KimiRunner(workspace, timeout_seconds, model=model)
     return CodexRunner(workspace, timeout_seconds, model=model)

@@ -34,3 +34,7 @@ def editorial_agent_model(settings: AppSettings) -> str | None:
 
 def translation_agent_model(settings: AppSettings) -> str | None:
     return _clean_model(settings.agent.translation_model) or default_agent_model(settings)
+
+
+def vision_agent_model(settings: AppSettings) -> str | None:
+    return _clean_model(settings.agent.vision_model) or default_agent_model(settings)

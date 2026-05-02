@@ -26,6 +26,7 @@ Hard requirements:
 - When useful `sub_analyses` exist, integrate their facts naturally instead of dumping them verbatim.
 - The final pipeline inserts a deterministic `MARKET SNAPSHOT` block separately above `MARKET OVERVIEW`; use the provided market snapshot data to sharpen cross-market framing, but do not create a second standalone snapshot section.
 - If a sub-analysis already contains a markdown image embed and the visual materially improves a comparison, preserve that embed in the final article instead of flattening it back into prose.
+- When a sub-analysis includes an `**Insight**` section, weave at least one of its specific interpretations into the surrounding prose rather than just dropping the chart image — the reader should see why the chart matters, not just the chart.
 
 Writing guidance:
 - Start `MARKET OVERVIEW` with the clearest cross-market takeaway, not a list of videos.

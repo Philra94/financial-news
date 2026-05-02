@@ -9,9 +9,10 @@ import re
 from typing import Any
 
 from agents.charts import materialize_chart_markdown
+from agents.chart_review import RunnerChartCritic, review_chart
 from agents.config import load_pipeline_status, save_pipeline_status
 from agents.config import effective_settings_path
-from agents.model_selection import analysis_agent_model, capital_iq_agent_model
+from agents.model_selection import analysis_agent_model, capital_iq_agent_model, vision_agent_model
 from agents.models import (
     AnalysisResearchTask,
     AppSettings,
@@ -380,15 +381,39 @@ def _slugify(value: str) -> str:
     return slug[:60] or "task"
 
 
-def _materialize_subanalysis_charts(markdown: str, date_str: str, video_id: str, task_index: int, slug: str) -> str:
+def _materialize_subanalysis_charts(
+    markdown: str,
+    date_str: str,
+    video_id: str,
+    task_index: int,
+    slug: str,
+    settings: AppSettings | None = None,
+    workspace: Path | None = None,
+) -> str:
     if "```chart-spec" not in markdown:
         return markdown
+    review = None
+    if settings is not None and workspace is not None:
+        vision_model = vision_agent_model(settings)
+        review_root = workspace / "chart-review"
+
+        def _factory(critic_workspace: Path):
+            return build_runner(
+                settings.agent.backend,
+                critic_workspace,
+                max(60, settings.agent.research_timeout_seconds // 3),
+                model=vision_model,
+            )
+
+        critic = RunnerChartCritic(_factory, review_root, slug_prefix=slug)
+        review = lambda spec: review_chart(spec, critic, max_rounds=2)
     try:
         return materialize_chart_markdown(
             markdown,
             report_charts_dir(date_str),
             report_asset_url(date_str, "assets", "charts"),
             f"{video_id}-{task_index:02d}-{slug}",
+            review=review,
         )
     except Exception:
         logger.exception("Chart materialization failed for %s task %s", video_id, task_index)
@@ -425,7 +450,15 @@ async def _run_sp_data_subtask(
         model=capital_iq_agent_model(settings),
     )
     markdown = (await runner.run(prompt, _sp_research_skills())).strip()
-    markdown = _materialize_subanalysis_charts(markdown, date_str, video.video_id, task_index, slug)
+    markdown = _materialize_subanalysis_charts(
+        markdown,
+        date_str,
+        video.video_id,
+        task_index,
+        slug,
+        settings=settings,
+        workspace=workspace,
+    )
     result_path = workspace / "analysis.md"
     write_text(result_path, markdown.rstrip() + "\n" if markdown else "")
     return SubAnalysis(

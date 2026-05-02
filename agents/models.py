@@ -6,7 +6,7 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 
-AgentBackend = Literal["claude-code", "codex", "cursor", "copilot"]
+AgentBackend = Literal["claude-code", "codex", "cursor", "copilot", "kimi"]
 ClaimStatus = Literal["pending", "queued", "researching", "completed", "failed"]
 PipelineJobStatus = Literal["queued", "running", "completed", "failed"]
 BriefingQuality = Literal["full", "fallback"]
@@ -40,6 +40,7 @@ class AgentSettings(BaseModel):
     research_model: str = ""
     editorial_model: str = ""
     translation_model: str = ""
+    vision_model: str = ""
     max_concurrent_research: int = 2
     research_timeout_seconds: int = 600
 
